@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "forceConsistentCasingInFileNames": false,
+    "jsx": "react-native",
+    "skipLibCheck": true
+  },
+  "extends": "expo/tsconfig.base"
+}

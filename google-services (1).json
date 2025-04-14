@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1098642367077",
+    "project_id": "gatewaytogold-1bf66",
+    "storage_bucket": "gatewaytogold-1bf66.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1098642367077:android:6e6c5164d642267672dc8c",
+        "android_client_info": {
+          "package_name": "com.depauw.gtg"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAPidd0JyfmTXP4skidXaIjQBk78d2sF1o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
