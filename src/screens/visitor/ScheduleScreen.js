@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, SafeAreaView, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../context/ThemeContext';
 
 // Import demo data and helper functions
 import { ACTIVITIES, CLASSES, STUDENTS } from '../../utils/demoData';
@@ -10,6 +11,8 @@ import { formatDate, formatTime } from '../../utils/helpers';
 const currentStudent = STUDENTS[0];
 
 const ScheduleScreen = ({ navigation }) => {
+  const { theme } = useTheme();
+  
   // State for tabs and filtering
   const [activeTab, setActiveTab] = useState('today');
   const [searchQuery, setSearchQuery] = useState('');
@@ -89,7 +92,10 @@ const ScheduleScreen = ({ navigation }) => {
     
     return (
       <TouchableOpacity 
-        style={styles.scheduleItem}
+        style={[styles.scheduleItem, { 
+          backgroundColor: theme.colors.card,
+          borderColor: theme.colors.border
+        }]}
         onPress={() => {
           // Navigate to details screen based on type
           if (isClass) {
@@ -101,12 +107,16 @@ const ScheduleScreen = ({ navigation }) => {
           }
         }}
       >
-        <View style={[styles.itemTypeIndicator, { backgroundColor: isClass ? '#4e73df' : '#f9a826' }]} />
+        <View style={[styles.itemTypeIndicator, { backgroundColor: isClass ? theme.colors.tertiary : theme.colors.primary }]} />
         <View style={styles.itemContent}>
           <View style={styles.itemHeader}>
-            <Text style={styles.itemName}>{item.name}</Text>
-            <View style={[styles.itemTypeBadge, { backgroundColor: isClass ? '#e8eeff' : '#fff8e8' }]}>
-              <Text style={[styles.itemTypeText, { color: isClass ? '#4e73df' : '#f9a826' }]}>
+            <Text style={[styles.itemName, { color: theme.colors.text.primary }]}>{item.name}</Text>
+            <View style={[styles.itemTypeBadge, { 
+              backgroundColor: isClass 
+                ? theme.mode === 'dark' ? 'rgba(93, 95, 239, 0.2)' : '#e8eeff' 
+                : theme.mode === 'dark' ? 'rgba(249, 168, 38, 0.2)' : '#fff8e8' 
+            }]}>
+              <Text style={[styles.itemTypeText, { color: isClass ? theme.colors.tertiary : theme.colors.primary }]}>
                 {isClass ? 'Class' : 'Activity'}
               </Text>
             </View>
@@ -114,24 +124,24 @@ const ScheduleScreen = ({ navigation }) => {
           
           <View style={styles.itemDetails}>
             <View style={styles.detailRow}>
-              <Ionicons name="calendar-outline" size={16} color="#666" style={styles.detailIcon} />
-              <Text style={styles.detailText}>{formatDate(item.date, 'medium')}</Text>
+              <Ionicons name="calendar-outline" size={16} color={theme.colors.text.secondary} style={styles.detailIcon} />
+              <Text style={[styles.detailText, { color: theme.colors.text.secondary }]}>{formatDate(item.date, 'medium')}</Text>
             </View>
             
             <View style={styles.detailRow}>
-              <Ionicons name="time-outline" size={16} color="#666" style={styles.detailIcon} />
-              <Text style={styles.detailText}>{formatTime(item.time)}</Text>
+              <Ionicons name="time-outline" size={16} color={theme.colors.text.secondary} style={styles.detailIcon} />
+              <Text style={[styles.detailText, { color: theme.colors.text.secondary }]}>{formatTime(item.time)}</Text>
             </View>
             
             <View style={styles.detailRow}>
-              <Ionicons name="location-outline" size={16} color="#666" style={styles.detailIcon} />
-              <Text style={styles.detailText}>{item.location}</Text>
+              <Ionicons name="location-outline" size={16} color={theme.colors.text.secondary} style={styles.detailIcon} />
+              <Text style={[styles.detailText, { color: theme.colors.text.secondary }]}>{item.location}</Text>
             </View>
             
             {isClass && (
               <View style={styles.detailRow}>
-                <Ionicons name="person-outline" size={16} color="#666" style={styles.detailIcon} />
-                <Text style={styles.detailText}>{item.instructor}</Text>
+                <Ionicons name="person-outline" size={16} color={theme.colors.text.secondary} style={styles.detailIcon} />
+                <Text style={[styles.detailText, { color: theme.colors.text.secondary }]}>{item.instructor}</Text>
               </View>
             )}
           </View>
@@ -143,9 +153,9 @@ const ScheduleScreen = ({ navigation }) => {
   // Return empty state component when no schedule items are found
   const renderEmptyState = () => (
     <View style={styles.emptyStateContainer}>
-      <Ionicons name="calendar-outline" size={64} color="#ccc" />
-      <Text style={styles.emptyStateTitle}>No events found</Text>
-      <Text style={styles.emptyStateText}>
+      <Ionicons name="calendar-outline" size={64} color={theme.colors.text.tertiary} />
+      <Text style={[styles.emptyStateTitle, { color: theme.colors.text.primary }]}>No events found</Text>
+      <Text style={[styles.emptyStateText, { color: theme.colors.text.secondary }]}>
         {activeTab === 'today' 
           ? "You don't have any events scheduled for today." 
           : activeTab === 'upcoming' 
@@ -156,46 +166,75 @@ const ScheduleScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.screenTitle}>My Schedule</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      <StatusBar barStyle={theme.colors.statusBar} backgroundColor={theme.colors.background.primary} />
+      <View style={[styles.header, { 
+        backgroundColor: theme.colors.background.secondary,
+        borderBottomColor: theme.colors.border 
+      }]}>
+        <Text style={[styles.screenTitle, { color: theme.colors.text.primary }]}>My Schedule</Text>
       </View>
       
-      <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={20} color="#999" style={styles.searchIcon} />
+      <View style={[styles.searchContainer, { 
+        backgroundColor: theme.colors.card,
+        borderColor: theme.colors.border 
+      }]}>
+        <Ionicons name="search-outline" size={20} color={theme.colors.text.tertiary} style={styles.searchIcon} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: theme.colors.text.primary }]}
           placeholder="Search events..."
+          placeholderTextColor={theme.colors.text.tertiary}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery !== '' && (
           <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
-            <Ionicons name="close-circle" size={20} color="#999" />
+            <Ionicons name="close-circle" size={20} color={theme.colors.text.tertiary} />
           </TouchableOpacity>
         )}
       </View>
       
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { borderBottomColor: theme.colors.border }]}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'today' && styles.activeTab]}
+          style={[
+            styles.tab, 
+            activeTab === 'today' && [styles.activeTab, { borderBottomColor: theme.colors.primary }]
+          ]}
           onPress={() => setActiveTab('today')}
         >
-          <Text style={[styles.tabText, activeTab === 'today' && styles.activeTabText]}>Today</Text>
+          <Text style={[
+            styles.tabText, 
+            { color: theme.colors.text.secondary },
+            activeTab === 'today' && { color: theme.colors.primary }
+          ]}>Today</Text>
         </TouchableOpacity>
         
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'upcoming' && styles.activeTab]}
+          style={[
+            styles.tab, 
+            activeTab === 'upcoming' && [styles.activeTab, { borderBottomColor: theme.colors.primary }]
+          ]}
           onPress={() => setActiveTab('upcoming')}
         >
-          <Text style={[styles.tabText, activeTab === 'upcoming' && styles.activeTabText]}>Upcoming</Text>
+          <Text style={[
+            styles.tabText, 
+            { color: theme.colors.text.secondary },
+            activeTab === 'upcoming' && { color: theme.colors.primary }
+          ]}>Upcoming</Text>
         </TouchableOpacity>
         
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'all' && styles.activeTab]}
+          style={[
+            styles.tab, 
+            activeTab === 'all' && [styles.activeTab, { borderBottomColor: theme.colors.primary }]
+          ]}
           onPress={() => setActiveTab('all')}
         >
-          <Text style={[styles.tabText, activeTab === 'all' && styles.activeTabText]}>All Events</Text>
+          <Text style={[
+            styles.tabText, 
+            { color: theme.colors.text.secondary },
+            activeTab === 'all' && { color: theme.colors.primary }
+          ]}>All Events</Text>
         </TouchableOpacity>
       </View>
       
@@ -214,29 +253,23 @@ const ScheduleScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   header: {
     padding: 16,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e1e1',
   },
   screenTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
     marginHorizontal: 16,
     marginVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e1e1e1',
   },
   searchIcon: {
     marginRight: 8,
@@ -245,58 +278,43 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 40,
     fontSize: 16,
-    color: '#333',
   },
   clearButton: {
     padding: 4,
   },
   tabContainer: {
     flexDirection: 'row',
-    marginHorizontal: 16,
-    marginBottom: 12,
+    borderBottomWidth: 1,
+    marginBottom: 8,
   },
   tab: {
     flex: 1,
-    paddingVertical: 8,
     alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    paddingVertical: 12,
   },
   activeTab: {
-    borderBottomColor: '#f9a826',
+    borderBottomWidth: 2,
   },
   tabText: {
-    fontSize: 14,
     fontWeight: '500',
-    color: '#888',
-  },
-  activeTabText: {
-    color: '#f9a826',
-    fontWeight: '600',
   },
   scheduleList: {
     padding: 16,
-    paddingTop: 8,
+    paddingBottom: 24,
   },
   scheduleItem: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
     borderRadius: 8,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
     overflow: 'hidden',
+    borderWidth: 1,
   },
   itemTypeIndicator: {
-    width: 6,
-    backgroundColor: '#4e73df',
+    width: 4,
   },
   itemContent: {
     flex: 1,
-    padding: 16,
+    padding: 12,
   },
   itemHeader: {
     flexDirection: 'row',
@@ -305,20 +323,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   itemName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 16,
+    fontWeight: 'bold',
     flex: 1,
   },
   itemTypeBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 12,
     marginLeft: 8,
   },
   itemTypeText: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: 'bold',
   },
   itemDetails: {
     marginTop: 4,
@@ -330,26 +347,26 @@ const styles = StyleSheet.create({
   },
   detailIcon: {
     marginRight: 6,
+    width: 16,
+    alignItems: 'center',
   },
   detailText: {
     fontSize: 14,
-    color: '#666',
   },
   emptyStateContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 40,
+    padding: 24,
+    marginTop: 40,
   },
   emptyStateTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: 'bold',
     marginTop: 16,
     marginBottom: 8,
   },
   emptyStateText: {
     fontSize: 14,
-    color: '#888',
     textAlign: 'center',
   },
 });

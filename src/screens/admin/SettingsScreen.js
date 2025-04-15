@@ -12,15 +12,17 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import Header from '../../components/Header';
 import Card from '../../components/Card';
 
 const SettingsScreen = () => {
   const navigation = useNavigation();
   const { handleLogout } = useAuth();
+  const { theme, isDarkMode, toggleTheme, useSystemTheme, enableSystemTheme } = useTheme();
   const [enableNotifications, setEnableNotifications] = useState(true);
-  const [darkMode, setDarkMode] = useState(true);
   const [emailUpdates, setEmailUpdates] = useState(true);
+  const [useDeviceTheme, setUseDeviceTheme] = useState(useSystemTheme);
 
   const handleUserManagement = () => {
     navigation.navigate('UserManagement');
@@ -34,26 +36,37 @@ const SettingsScreen = () => {
     handleLogout();
   };
 
+  const handleThemeToggle = (value) => {
+    toggleTheme(value);
+  };
+
+  const handleDeviceThemeToggle = (value) => {
+    setUseDeviceTheme(value);
+    if (value) {
+      enableSystemTheme();
+    }
+  };
+
   const renderSettingItem = (icon, title, description, action, isSwitch = false, value = false, onValueChange = null) => (
-    <View style={styles.settingItem}>
+    <View style={[styles.settingItem, { borderBottomColor: theme.colors.border }]}>
       <View style={styles.settingIcon}>
-        <Ionicons name={icon} size={24} color="#F9A826" />
+        <Ionicons name={icon} size={24} color={theme.colors.primary} />
       </View>
       <View style={styles.settingContent}>
-        <Text style={styles.settingTitle}>{title}</Text>
-        {description && <Text style={styles.settingDescription}>{description}</Text>}
+        <Text style={[styles.settingTitle, { color: theme.colors.text.primary }]}>{title}</Text>
+        {description && <Text style={[styles.settingDescription, { color: theme.colors.text.secondary }]}>{description}</Text>}
       </View>
       <View style={styles.settingAction}>
         {isSwitch ? (
           <Switch
             value={value}
             onValueChange={onValueChange}
-            trackColor={{ false: '#444', true: '#F9A826' }}
+            trackColor={{ false: theme.colors.background.tertiary, true: theme.colors.primary }}
             thumbColor={value ? '#FFFFFF' : '#CCCCCC'}
           />
         ) : (
           <TouchableOpacity onPress={action}>
-            <Ionicons name="chevron-forward" size={20} color="#888" />
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.text.tertiary} />
           </TouchableOpacity>
         )}
       </View>
@@ -61,9 +74,9 @@ const SettingsScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1A1A" />
-      <View style={styles.container}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background.primary }]}>
+      <StatusBar barStyle={theme.colors.statusBar} backgroundColor={theme.colors.background.primary} />
+      <View style={[styles.container, { backgroundColor: theme.colors.background.secondary }]}>
         <Header 
           title="Settings" 
           showMenuButton={true}
@@ -72,7 +85,7 @@ const SettingsScreen = () => {
 
         <ScrollView style={styles.scrollView}>
           <Card style={styles.section}>
-            <Text style={styles.sectionTitle}>Account Settings</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Account Settings</Text>
 
             {renderSettingItem(
               'person-circle',
@@ -97,7 +110,7 @@ const SettingsScreen = () => {
           </Card>
 
           <Card style={styles.section}>
-            <Text style={styles.sectionTitle}>Notifications</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Notifications</Text>
 
             {renderSettingItem(
               'notifications',
@@ -121,16 +134,26 @@ const SettingsScreen = () => {
           </Card>
 
           <Card style={styles.section}>
-            <Text style={styles.sectionTitle}>App Settings</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>App Settings</Text>
 
             {renderSettingItem(
+              'phone-portrait',
+              'Use Device Theme',
+              'Match app theme with your device settings',
+              null,
+              true,
+              useDeviceTheme,
+              handleDeviceThemeToggle
+            )}
+
+            {!useDeviceTheme && renderSettingItem(
               'moon',
               'Dark Mode',
               'Use dark theme throughout the app',
               null,
               true,
-              darkMode,
-              setDarkMode
+              isDarkMode,
+              handleThemeToggle
             )}
 
             {renderSettingItem(
@@ -142,7 +165,7 @@ const SettingsScreen = () => {
           </Card>
 
           <Card style={styles.section}>
-            <Text style={styles.sectionTitle}>Support</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Support</Text>
 
             {renderSettingItem(
               'help-circle',
@@ -166,13 +189,16 @@ const SettingsScreen = () => {
             )}
           </Card>
 
-          <TouchableOpacity style={styles.logoutButton} onPress={confirmLogout}>
+          <TouchableOpacity 
+            style={[styles.logoutButton, { backgroundColor: theme.colors.background.tertiary }]} 
+            onPress={confirmLogout}
+          >
             <Ionicons name="log-out-outline" size={20} color="#E74C3C" />
             <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>
+            <Text style={[styles.footerText, { color: theme.colors.text.tertiary }]}>
               DePauw University Pre-College Program v1.0.0
             </Text>
           </View>
@@ -185,11 +211,9 @@ const SettingsScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
   },
   container: {
     flex: 1,
-    backgroundColor: '#222',
   },
   scrollView: {
     flex: 1,
@@ -199,7 +223,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
@@ -209,7 +232,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#444',
   },
   settingIcon: {
     width: 40,
@@ -221,12 +243,10 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   settingTitle: {
-    color: 'white',
     fontSize: 16,
     marginBottom: 4,
   },
   settingDescription: {
-    color: '#AAA',
     fontSize: 12,
   },
   settingAction: {
@@ -237,7 +257,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,
-    backgroundColor: '#333',
     borderRadius: 8,
     marginBottom: 16,
   },
@@ -252,7 +271,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   footerText: {
-    color: '#888',
     fontSize: 12,
   },
 });

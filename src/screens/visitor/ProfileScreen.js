@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 
 // Import demo data and helpers
 import { STUDENTS } from '../../utils/demoData';
@@ -24,11 +25,18 @@ const currentStudent = STUDENTS[0];
 const ProfileScreen = () => {
   const navigation = useNavigation();
   const { handleLogout } = useAuth();
+  const { theme, isDarkMode, toggleTheme, useSystemTheme, enableSystemTheme } = useTheme();
   
   // State for settings switches
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
+  const [useDeviceTheme, setUseDeviceTheme] = useState(useSystemTheme);
   const [locationEnabled, setLocationEnabled] = useState(true);
+  
+  // Sync darkMode state with the theme context
+  useEffect(() => {
+    // This ensures the switch reflects the current theme state
+    setUseDeviceTheme(useSystemTheme);
+  }, [useSystemTheme]);
   
   const handleEditProfile = () => {
     // Will navigate to edit profile screen in future
@@ -68,35 +76,46 @@ const ProfileScreen = () => {
     );
   };
   
+  const handleThemeToggle = (value) => {
+    toggleTheme(value);
+  };
+  
+  const handleDeviceThemeToggle = (value) => {
+    setUseDeviceTheme(value);
+    if (value) {
+      enableSystemTheme();
+    }
+  };
+  
   // Progress sections
   const renderProgressSection = () => (
-    <View style={styles.sectionCard}>
+    <View style={[styles.sectionCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Program Progress</Text>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Program Progress</Text>
       </View>
       
       <View style={styles.progressContainer}>
-        <View style={styles.progressBarContainer}>
+        <View style={[styles.progressBarContainer, { backgroundColor: theme.colors.background.tertiary }]}>
           <View style={[styles.progressBar, { width: `${currentStudent.progress}%` }]} />
         </View>
-        <Text style={styles.progressText}>{currentStudent.progress}% Complete</Text>
+        <Text style={[styles.progressText, { color: theme.colors.text.secondary }]}>{currentStudent.progress}% Complete</Text>
       </View>
       
       {/* Course completion badges could go here */}
       <View style={styles.badgesContainer}>
-        <View style={styles.badge}>
-          <Ionicons name="school" size={22} color="#4e73df" />
-          <Text style={styles.badgeText}>Academic</Text>
+        <View style={[styles.badge, { backgroundColor: theme.colors.background.tertiary }]}>
+          <Ionicons name="school" size={22} color={theme.colors.primary} />
+          <Text style={[styles.badgeText, { color: theme.colors.text.primary }]}>Academic</Text>
         </View>
         
-        <View style={styles.badge}>
-          <Ionicons name="people" size={22} color="#f9a826" />
-          <Text style={styles.badgeText}>Social</Text>
+        <View style={[styles.badge, { backgroundColor: theme.colors.background.tertiary }]}>
+          <Ionicons name="people" size={22} color={theme.colors.primary} />
+          <Text style={[styles.badgeText, { color: theme.colors.text.primary }]}>Social</Text>
         </View>
         
-        <View style={styles.badge}>
-          <Ionicons name="construct" size={22} color="#2ecc71" />
-          <Text style={styles.badgeText}>Skills</Text>
+        <View style={[styles.badge, { backgroundColor: theme.colors.background.tertiary }]}>
+          <Ionicons name="construct" size={22} color={theme.colors.primary} />
+          <Text style={[styles.badgeText, { color: theme.colors.text.primary }]}>Skills</Text>
         </View>
       </View>
     </View>
@@ -104,21 +123,21 @@ const ProfileScreen = () => {
   
   // Room and schedule section
   const renderRoomScheduleSection = () => (
-    <View style={styles.sectionCard}>
+    <View style={[styles.sectionCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Room & Schedule</Text>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Room & Schedule</Text>
       </View>
       
       <View style={styles.infoRow}>
-        <Ionicons name="home-outline" size={20} color="#666" style={styles.infoIcon} />
+        <Ionicons name="home-outline" size={20} color={theme.colors.text.secondary} style={styles.infoIcon} />
         <View>
-          <Text style={styles.infoLabel}>Room Assignment</Text>
-          <Text style={styles.infoValue}>{currentStudent.roomAssignment.building} - Room {currentStudent.roomAssignment.roomNumber}</Text>
+          <Text style={[styles.infoLabel, { color: theme.colors.text.secondary }]}>Room Assignment</Text>
+          <Text style={[styles.infoValue, { color: theme.colors.text.primary }]}>{currentStudent.roomAssignment.building} - Room {currentStudent.roomAssignment.roomNumber}</Text>
         </View>
       </View>
       
       <TouchableOpacity 
-        style={styles.actionButton} 
+        style={[styles.actionButton, { backgroundColor: theme.colors.primary }]} 
         onPress={() => navigation.navigate('ScheduleTab')}
       >
         <Ionicons name="calendar-outline" size={20} color="#fff" />
@@ -129,42 +148,56 @@ const ProfileScreen = () => {
   
   // Settings section
   const renderSettingsSection = () => (
-    <View style={styles.sectionCard}>
+    <View style={[styles.sectionCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Settings</Text>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Settings</Text>
       </View>
       
-      <View style={styles.settingRow}>
-        <Ionicons name="notifications-outline" size={22} color="#666" />
-        <Text style={styles.settingText}>Notifications</Text>
+      <View style={[styles.settingRow, { borderBottomColor: theme.colors.border }]}>
+        <Ionicons name="notifications-outline" size={22} color={theme.colors.text.secondary} />
+        <Text style={[styles.settingText, { color: theme.colors.text.primary }]}>Notifications</Text>
         <Switch
           value={notificationsEnabled}
           onValueChange={setNotificationsEnabled}
-          trackColor={{ false: '#e1e1e1', true: '#4e73df' }}
+          trackColor={{ false: theme.colors.background.tertiary, true: theme.colors.primary }}
           thumbColor="#fff"
           style={styles.settingSwitch}
         />
       </View>
       
-      <View style={styles.settingRow}>
-        <Ionicons name="moon-outline" size={22} color="#666" />
-        <Text style={styles.settingText}>Dark Mode</Text>
+      <View style={[styles.settingRow, { borderBottomColor: theme.colors.border }]}>
+        <Ionicons name="phone-portrait-outline" size={22} color={theme.colors.text.secondary} />
+        <Text style={[styles.settingText, { color: theme.colors.text.primary }]}>Use Device Theme</Text>
         <Switch
-          value={darkModeEnabled}
-          onValueChange={setDarkModeEnabled}
-          trackColor={{ false: '#e1e1e1', true: '#4e73df' }}
+          value={useDeviceTheme}
+          onValueChange={handleDeviceThemeToggle}
+          trackColor={{ false: theme.colors.background.tertiary, true: theme.colors.primary }}
           thumbColor="#fff"
           style={styles.settingSwitch}
         />
       </View>
       
-      <View style={styles.settingRow}>
-        <Ionicons name="location-outline" size={22} color="#666" />
-        <Text style={styles.settingText}>Location Services</Text>
+      {!useDeviceTheme && (
+        <View style={[styles.settingRow, { borderBottomColor: theme.colors.border }]}>
+          <Ionicons name="moon-outline" size={22} color={theme.colors.text.secondary} />
+          <Text style={[styles.settingText, { color: theme.colors.text.primary }]}>Dark Mode</Text>
+          <Switch
+            value={isDarkMode}
+            onValueChange={handleThemeToggle}
+            trackColor={{ false: theme.colors.background.tertiary, true: theme.colors.primary }}
+            thumbColor="#fff"
+            style={styles.settingSwitch}
+          />
+        </View>
+      )}
+      
+      <View style={[styles.settingRow, { borderBottomColor: theme.colors.border }]}>
+        <Ionicons name="location-outline" size={22} color={theme.colors.text.secondary} />
+        <Text style={[styles.settingText, { color: theme.colors.text.primary }]}>Location Services</Text>
         <Switch
           value={locationEnabled}
           onValueChange={setLocationEnabled}
-          trackColor={{ false: '#e1e1e1', true: '#4e73df' }}
+          trackColor={{ false: theme.colors.background.tertiary, true: theme.colors.primary }}
           thumbColor="#fff"
           style={styles.settingSwitch}
         />
@@ -174,73 +207,73 @@ const ProfileScreen = () => {
   
   // Actions section
   const renderActionsSection = () => (
-    <View style={styles.sectionCard}>
+    <View style={[styles.sectionCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Quick Actions</Text>
       </View>
       
       <TouchableOpacity 
-        style={styles.actionRow} 
+        style={[styles.actionRow, { borderBottomColor: theme.colors.border }]} 
         onPress={handleMedicalInfo}
       >
-        <Ionicons name="medical-outline" size={22} color="#e74c3c" style={styles.actionIcon} />
-        <Text style={styles.actionText}>Medical Information</Text>
-        <Ionicons name="chevron-forward" size={20} color="#999" />
+        <Ionicons name="medical-outline" size={22} color={theme.colors.accent} style={styles.actionIcon} />
+        <Text style={[styles.actionText, { color: theme.colors.text.primary }]}>Medical Information</Text>
+        <Ionicons name="chevron-forward" size={20} color={theme.colors.text.tertiary} />
       </TouchableOpacity>
       
       <TouchableOpacity 
-        style={styles.actionRow} 
+        style={[styles.actionRow, { borderBottomColor: theme.colors.border }]} 
         onPress={handleEmergencyContact}
       >
-        <Ionicons name="call-outline" size={22} color="#f9a826" style={styles.actionIcon} />
-        <Text style={styles.actionText}>Emergency Contact</Text>
-        <Ionicons name="chevron-forward" size={20} color="#999" />
+        <Ionicons name="call-outline" size={22} color={theme.colors.primary} style={styles.actionIcon} />
+        <Text style={[styles.actionText, { color: theme.colors.text.primary }]}>Emergency Contact</Text>
+        <Ionicons name="chevron-forward" size={20} color={theme.colors.text.tertiary} />
       </TouchableOpacity>
       
       <TouchableOpacity 
-        style={styles.actionRow} 
+        style={[styles.actionRow, { borderBottomColor: theme.colors.border }]} 
         onPress={handleViewMentor}
       >
-        <Ionicons name="person-outline" size={22} color="#4e73df" style={styles.actionIcon} />
-        <Text style={styles.actionText}>My Mentor</Text>
-        <Ionicons name="chevron-forward" size={20} color="#999" />
+        <Ionicons name="person-outline" size={22} color={theme.colors.tertiary} style={styles.actionIcon} />
+        <Text style={[styles.actionText, { color: theme.colors.text.primary }]}>My Mentor</Text>
+        <Ionicons name="chevron-forward" size={20} color={theme.colors.text.tertiary} />
       </TouchableOpacity>
       
       <TouchableOpacity 
         style={[styles.actionRow, styles.logoutRow]} 
         onPress={handleLogoutPress}
       >
-        <Ionicons name="log-out-outline" size={22} color="#e74c3c" style={styles.actionIcon} />
+        <Ionicons name="log-out-outline" size={22} color={theme.colors.accent} style={styles.actionIcon} />
         <Text style={[styles.actionText, styles.logoutText]}>Logout</Text>
       </TouchableOpacity>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.screenTitle}>My Profile</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      <View style={[styles.header, { backgroundColor: theme.colors.background.secondary }]}>
+        <Text style={[styles.screenTitle, { color: theme.colors.text.primary }]}>My Profile</Text>
         <TouchableOpacity 
           style={styles.editButton}
           onPress={handleEditProfile}
         >
-          <Ionicons name="create-outline" size={22} color="#4e73df" />
+          <Ionicons name="create-outline" size={22} color={theme.colors.primary} />
         </TouchableOpacity>
       </View>
       
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.profileCard}>
+        <View style={[styles.profileCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
           {currentStudent.profileImageUrl ? (
             <Image source={{ uri: currentStudent.profileImageUrl }} style={styles.profileImage} />
           ) : (
-            <View style={styles.initialsContainer}>
+            <View style={[styles.initialsContainer, { backgroundColor: theme.colors.primary }]}>
               <Text style={styles.initials}>{getInitials(currentStudent.name)}</Text>
             </View>
           )}
           
-          <Text style={styles.profileName}>{currentStudent.name}</Text>
-          <Text style={styles.profileDepartment}>{currentStudent.department}</Text>
-          <Text style={styles.profileEmail}>{currentStudent.email}</Text>
+          <Text style={[styles.profileName, { color: theme.colors.text.primary }]}>{currentStudent.name}</Text>
+          <Text style={[styles.profileDepartment, { color: theme.colors.text.secondary }]}>{currentStudent.department}</Text>
+          <Text style={[styles.profileEmail, { color: theme.colors.text.secondary }]}>{currentStudent.email}</Text>
         </View>
         
         {renderProgressSection()}
@@ -248,9 +281,7 @@ const ProfileScreen = () => {
         {renderSettingsSection()}
         {renderActionsSection()}
         
-        <View style={styles.versionInfo}>
-          <Text style={styles.versionText}>DePauw Pre-College App v1.0.0</Text>
-        </View>
+        <View style={styles.spacer} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -456,13 +487,8 @@ const styles = StyleSheet.create({
   logoutText: {
     color: '#e74c3c',
   },
-  versionInfo: {
-    alignItems: 'center',
-    paddingVertical: 24,
-  },
-  versionText: {
-    fontSize: 12,
-    color: '#999',
+  spacer: {
+    height: 24,
   },
 });
 

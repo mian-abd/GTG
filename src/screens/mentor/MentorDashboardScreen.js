@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 
 // Demo data
 const STUDENT_DATA = [
@@ -81,6 +82,7 @@ const SCHEDULE_TOMORROW = [
 const MentorDashboardScreen = () => {
   const navigation = useNavigation();
   const { handleLogout } = useAuth();
+  const { theme } = useTheme();
   
   const handleMenuToggle = () => {
     // Toggle the sidebar menu
@@ -91,125 +93,143 @@ const MentorDashboardScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1A1A" />
-      <View style={styles.container}>
-        <View style={styles.header}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background.primary }]}>
+      <StatusBar barStyle={theme.colors.statusBar} backgroundColor={theme.colors.background.primary} />
+      <View style={[styles.container, { backgroundColor: theme.colors.background.secondary }]}>
+        <View style={[styles.header, { 
+          backgroundColor: theme.colors.background.primary,
+          borderBottomColor: theme.colors.border
+        }]}>
           <TouchableOpacity onPress={handleMenuToggle} style={styles.menuButton}>
-            <Ionicons name="menu" size={24} color="#FFF" />
+            <Ionicons name="menu" size={24} color={theme.colors.text.primary} />
           </TouchableOpacity>
           <View style={styles.logoContainer}>
-            <Ionicons name="school" size={24} color="#009688" />
-            <Text style={styles.headerTitle}>Mentor Portal</Text>
+            <Ionicons name="school" size={24} color={theme.colors.primary} />
+            <Text style={[styles.headerTitle, { color: theme.colors.text.primary }]}>Mentor Portal</Text>
           </View>
           <TouchableOpacity style={styles.profileButton}>
-            <Ionicons name="notifications" size={24} color="#FFF" />
+            <Ionicons name="notifications" size={24} color={theme.colors.text.primary} />
           </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.scrollView}>
           <View style={styles.dashboardHeader}>
             <View style={styles.mentorProfileSection}>
-              <View style={styles.profileImageContainer}>
+              <View style={[styles.profileImageContainer, { backgroundColor: theme.colors.primary }]}>
                 <Text style={styles.profileInitials}>DR</Text>
               </View>
               <View style={styles.mentorInfo}>
-                <Text style={styles.mentorName}>Dr. Sarah Reynolds</Text>
-                <Text style={styles.mentorDepartment}>Computer Science</Text>
+                <Text style={[styles.mentorName, { color: theme.colors.text.primary }]}>Dr. Sarah Reynolds</Text>
+                <Text style={[styles.mentorDepartment, { color: theme.colors.text.secondary }]}>Computer Science</Text>
               </View>
             </View>
             <View style={styles.dashboardTitleContainer}>
-              <Text style={styles.dashboardTitle}>Mentor Dashboard</Text>
-              <Text style={styles.sessionInfo}>July 2025 • Summer Program</Text>
+              <Text style={[styles.dashboardTitle, { color: theme.colors.text.primary }]}>Mentor Dashboard</Text>
+              <Text style={[styles.sessionInfo, { color: theme.colors.text.secondary }]}>July 2025 • Summer Program</Text>
             </View>
           </View>
 
-          <View style={styles.welcomeCard}>
-            <Text style={styles.welcomeText}>Welcome back, Dr. Reynolds!</Text>
-            <Text style={styles.updateText}>You have 3 student updates and 2 upcoming activities today</Text>
-            <TouchableOpacity style={styles.viewScheduleButton}>
+          <View style={[styles.welcomeCard, { 
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border
+          }]}>
+            <Text style={[styles.welcomeText, { color: theme.colors.text.primary }]}>Welcome back, Dr. Reynolds!</Text>
+            <Text style={[styles.updateText, { color: theme.colors.text.secondary }]}>You have 3 student updates and 2 upcoming activities today</Text>
+            <TouchableOpacity style={[styles.viewScheduleButton, { backgroundColor: theme.colors.primary }]}>
               <Text style={styles.viewScheduleText}>View Schedule</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>My Students</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>My Students</Text>
           </View>
 
           <View style={styles.studentsContainer}>
             {STUDENT_DATA.map((student) => (
-              <View key={student.id} style={styles.studentCard}>
+              <View key={student.id} style={[styles.studentCard, { 
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border
+              }]}>
                 <View style={styles.studentHeader}>
-                  <View style={styles.initialsContainer}>
+                  <View style={[styles.initialsContainer, { backgroundColor: theme.colors.primary }]}>
                     <Text style={styles.initials}>{student.initials}</Text>
                   </View>
                   <View style={styles.studentInfo}>
-                    <Text style={styles.studentName}>{student.name}</Text>
-                    <Text style={styles.studentDepartment}>{student.department}</Text>
+                    <Text style={[styles.studentName, { color: theme.colors.text.primary }]}>{student.name}</Text>
+                    <Text style={[styles.studentDepartment, { color: theme.colors.text.secondary }]}>{student.department}</Text>
                   </View>
                 </View>
 
                 <View style={styles.progressContainer}>
-                  <Text style={styles.progressText}>Overall Progress</Text>
-                  <View style={styles.progressBarContainer}>
-                    <View style={[styles.progressBar, { width: `${student.progress}%` }]} />
+                  <Text style={[styles.progressText, { color: theme.colors.text.secondary }]}>Overall Progress</Text>
+                  <View style={[styles.progressBarContainer, { backgroundColor: theme.colors.background.tertiary }]}>
+                    <View style={[styles.progressBar, { 
+                      width: `${student.progress}%`,
+                      backgroundColor: theme.colors.primary
+                    }]} />
                   </View>
-                  <Text style={styles.progressPercentage}>{student.progress}%</Text>
+                  <Text style={[styles.progressPercentage, { color: theme.colors.text.secondary }]}>{student.progress}%</Text>
                 </View>
 
                 <View style={styles.meetingNotesContainer}>
-                  <Text style={styles.lastMeetingLabel}>Last meeting: {student.lastMeeting}</Text>
-                  <Text style={styles.meetingNotes}>{student.meetingNotes}</Text>
+                  <Text style={[styles.lastMeetingLabel, { color: theme.colors.text.secondary }]}>Last meeting: {student.lastMeeting}</Text>
+                  <Text style={[styles.meetingNotes, { color: theme.colors.text.primary }]}>{student.meetingNotes}</Text>
                 </View>
 
                 <TouchableOpacity 
-                  style={styles.viewDetailsButton}
+                  style={[styles.viewDetailsButton, { backgroundColor: theme.colors.background.tertiary }]}
                   onPress={() => handleStudentDetails(student)}
                 >
-                  <Text style={styles.viewDetailsText}>View Details</Text>
+                  <Text style={[styles.viewDetailsText, { color: theme.colors.text.primary }]}>View Details</Text>
                 </TouchableOpacity>
               </View>
             ))}
           </View>
 
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Today's Schedule</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Today's Schedule</Text>
           </View>
 
           <View style={styles.scheduleContainer}>
             {SCHEDULE_TODAY.map((item) => (
-              <View key={item.id} style={styles.scheduleItem}>
+              <View key={item.id} style={[styles.scheduleItem, { 
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border
+              }]}>
                 <View style={styles.scheduleIconContainer}>
-                  <Ionicons name={item.icon} size={24} color="#FFD700" />
+                  <Ionicons name={item.icon} size={24} color={theme.colors.primary} />
                 </View>
                 <View style={styles.scheduleInfo}>
-                  <Text style={styles.scheduleTitle}>{item.name}</Text>
-                  <Text style={styles.scheduleTime}>{item.time} • {item.location}</Text>
+                  <Text style={[styles.scheduleTitle, { color: theme.colors.text.primary }]}>{item.name}</Text>
+                  <Text style={[styles.scheduleTime, { color: theme.colors.text.secondary }]}>{item.time} • {item.location}</Text>
                 </View>
               </View>
             ))}
           </View>
 
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Tomorrow</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Tomorrow</Text>
           </View>
 
           <View style={styles.scheduleContainer}>
             {SCHEDULE_TOMORROW.map((item) => (
-              <View key={item.id} style={styles.scheduleItem}>
+              <View key={item.id} style={[styles.scheduleItem, { 
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border
+              }]}>
                 <View style={styles.scheduleIconContainer}>
-                  <Ionicons name={item.icon} size={24} color="#FFD700" />
+                  <Ionicons name={item.icon} size={24} color={theme.colors.primary} />
                 </View>
                 <View style={styles.scheduleInfo}>
-                  <Text style={styles.scheduleTitle}>{item.name}</Text>
-                  <Text style={styles.scheduleTime}>{item.time} • {item.location}</Text>
+                  <Text style={[styles.scheduleTitle, { color: theme.colors.text.primary }]}>{item.name}</Text>
+                  <Text style={[styles.scheduleTime, { color: theme.colors.text.secondary }]}>{item.time} • {item.location}</Text>
                 </View>
               </View>
             ))}
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>DePauw University Pre-College Program</Text>
+            <Text style={[styles.footerText, { color: theme.colors.text.tertiary }]}>DePauw University Pre-College Program</Text>
           </View>
         </ScrollView>
       </View>
@@ -220,20 +240,16 @@ const MentorDashboardScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
   },
   container: {
     flex: 1,
-    backgroundColor: '#222',
   },
   header: {
-    backgroundColor: '#1A1A1A',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   menuButton: {
     width: 40,
@@ -243,7 +259,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
     marginLeft: 8,

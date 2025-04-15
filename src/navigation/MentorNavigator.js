@@ -2,15 +2,17 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
-// Mentor Screens
+// Import screens
 import MentorDashboardScreen from '../screens/mentor/MentorDashboardScreen';
 import StudentsScreen from '../screens/mentor/StudentsScreen';
 import ScheduleScreen from '../screens/mentor/ScheduleScreen';
 import ResourcesScreen from '../screens/mentor/ResourcesScreen';
-import MessagesScreen from '../screens/mentor/MessagesScreen';
 import ProfileScreen from '../screens/mentor/ProfileScreen';
 import StudentDetailScreen from '../screens/mentor/StudentDetailScreen';
+import MessagesScreen from '../screens/mentor/MessagesScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -25,22 +27,22 @@ const DashboardStack = () => (
 // Students Stack
 const StudentsStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="Students" component={StudentsScreen} />
-    <Stack.Screen name="StudentDetail" component={StudentDetailScreen} />
+    <Stack.Screen name="MentorStudents" component={StudentsScreen} />
+    <Stack.Screen name="StudentDetails" component={StudentDetailScreen} />
   </Stack.Navigator>
 );
 
 // Schedule Stack
 const ScheduleStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="Schedule" component={ScheduleScreen} />
+    <Stack.Screen name="MentorSchedule" component={ScheduleScreen} />
   </Stack.Navigator>
 );
 
 // Resources Stack
 const ResourcesStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="Resources" component={ResourcesScreen} />
+    <Stack.Screen name="MentorResources" component={ResourcesScreen} />
   </Stack.Navigator>
 );
 
@@ -52,13 +54,22 @@ const MessagesStack = () => (
 );
 
 // Profile Stack
-const ProfileStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="Profile" component={ProfileScreen} />
-  </Stack.Navigator>
-);
+const ProfileStack = () => {
+  const { handleLogout } = useAuth();
+  
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen 
+        name="Profile" 
+        component={(props) => <ProfileScreen {...props} onLogout={handleLogout} />} 
+      />
+    </Stack.Navigator>
+  );
+};
 
 const MentorNavigator = () => {
+  const { theme } = useTheme();
+  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -81,15 +92,22 @@ const MentorNavigator = () => {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: 'teal',
-        tabBarInactiveTintColor: 'gray',
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.text.tertiary,
         headerShown: false,
+        tabBarStyle: {
+          backgroundColor: theme.colors.background.secondary,
+          borderTopColor: theme.colors.border,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+        }
       })}
     >
       <Tab.Screen 
         name="DashboardTab" 
         component={DashboardStack} 
-        options={{ title: 'Dashboard' }}
+        options={{ title: 'Home' }}
       />
       <Tab.Screen 
         name="StudentsTab" 
@@ -102,14 +120,14 @@ const MentorNavigator = () => {
         options={{ title: 'Schedule' }}
       />
       <Tab.Screen 
-        name="ResourcesTab" 
-        component={ResourcesStack} 
-        options={{ title: 'Resources' }}
-      />
-      <Tab.Screen 
         name="MessagesTab" 
         component={MessagesStack} 
         options={{ title: 'Messages' }}
+      />
+      <Tab.Screen 
+        name="ResourcesTab" 
+        component={ResourcesStack} 
+        options={{ title: 'Resources' }}
       />
       <Tab.Screen 
         name="ProfileTab" 

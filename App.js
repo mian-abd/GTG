@@ -10,6 +10,7 @@ import 'firebase/firestore';
 
 // Context
 import { AuthProvider } from './src/context/AuthContext';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 
 // Navigation
 import AuthNavigator from './src/navigation/AuthNavigator';
@@ -32,6 +33,12 @@ const firebaseConfig = {
 // Initialize Firebase
 // Note: Initialization is now handled in src/utils/firebaseConfig.js
 // But we keep this here for reference
+
+// StatusBar component that uses the theme
+const ThemedStatusBar = () => {
+  const { theme } = useTheme();
+  return <StatusBar style={theme.colors.statusBar} />;
+};
 
 export default function App() {
   const [userRole, setUserRole] = useState(null); // 'admin', 'mentor', 'visitor', or null
@@ -91,32 +98,36 @@ export default function App() {
   // For testing the email verification flow
   if (isEmailVerificationMode) {
     return (
-      <SafeAreaProvider>
-        <StatusBar style="auto" />
-        <AppNavigator />
-        {showModeSelector && <ModeSelector />}
-      </SafeAreaProvider>
+      <ThemeProvider>
+        <SafeAreaProvider>
+          <ThemedStatusBar />
+          <AppNavigator />
+          {showModeSelector && <ModeSelector />}
+        </SafeAreaProvider>
+      </ThemeProvider>
     );
   }
 
   return (
-    <SafeAreaProvider>
-      <AuthProvider value={{ userRole, handleLogin, handleLogout }}>
-        <NavigationContainer>
-          <StatusBar style="auto" />
-          {userRole === 'admin' ? (
-            <AdminNavigator />
-          ) : userRole === 'mentor' ? (
-            <MentorNavigator />
-          ) : userRole === 'visitor' ? (
-            <VisitorNavigator />
-          ) : (
-            <AuthNavigator />
-          )}
-          {showModeSelector && <ModeSelector />}
-        </NavigationContainer>
-      </AuthProvider>
-    </SafeAreaProvider>
+    <ThemeProvider>
+      <SafeAreaProvider>
+        <AuthProvider value={{ userRole, handleLogin, handleLogout }}>
+          <NavigationContainer>
+            <ThemedStatusBar />
+            {userRole === 'admin' ? (
+              <AdminNavigator />
+            ) : userRole === 'mentor' ? (
+              <MentorNavigator />
+            ) : userRole === 'visitor' ? (
+              <VisitorNavigator />
+            ) : (
+              <AuthNavigator />
+            )}
+            {showModeSelector && <ModeSelector />}
+          </NavigationContainer>
+        </AuthProvider>
+      </SafeAreaProvider>
+    </ThemeProvider>
   );
 }
 

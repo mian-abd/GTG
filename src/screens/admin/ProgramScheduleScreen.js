@@ -11,6 +11,7 @@ const ProgramScheduleScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [addModalVisible, setAddModalVisible] = useState(false);
   
   // Filter data based on search and active tab
   const filteredData = activeTab === 'activities' 
@@ -28,6 +29,60 @@ const ProgramScheduleScreen = () => {
     setSelectedItem(item);
     setModalVisible(true);
   };
+
+  const handleAddItem = () => {
+    setAddModalVisible(true);
+  };
+
+  // Add Option Modal
+  const AddOptionModal = () => (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={addModalVisible}
+      onRequestClose={() => setAddModalVisible(false)}
+    >
+      <TouchableOpacity 
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={() => setAddModalVisible(false)}
+      >
+        <View style={styles.addModalContainer}>
+          <View style={styles.addModalContent}>
+            <TouchableOpacity 
+              style={styles.addModalOption}
+              onPress={() => {
+                setAddModalVisible(false);
+                // Open form to add item
+                console.log(`Add ${activeTab === 'activities' ? 'Activity' : 'Class'} manually`);
+              }}
+            >
+              <Ionicons 
+                name={activeTab === 'activities' ? 'calendar-outline' : 'school-outline'} 
+                size={22} 
+                color="#333" 
+              />
+              <Text style={styles.addModalOptionText}>
+                Add {activeTab === 'activities' ? 'Activity' : 'Class'} Manually
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.addModalOption}
+              onPress={() => {
+                setAddModalVisible(false);
+                // Import from Excel
+                console.log(`Import ${activeTab === 'activities' ? 'Activities' : 'Classes'} from Excel`);
+              }}
+            >
+              <Ionicons name="document-outline" size={22} color="#333" />
+              <Text style={styles.addModalOptionText}>Import from Excel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
 
   const DetailModal = () => (
     <Modal
@@ -192,11 +247,15 @@ const ProgramScheduleScreen = () => {
         contentContainerStyle={styles.listContainer}
       />
 
-      <TouchableOpacity style={styles.addButton}>
+      <TouchableOpacity 
+        style={styles.addButton}
+        onPress={handleAddItem}
+      >
         <Ionicons name="add" size={30} color="white" />
       </TouchableOpacity>
 
       <DetailModal />
+      <AddOptionModal />
     </SafeAreaView>
   );
 };
@@ -398,6 +457,38 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     marginLeft: 6,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addModalContainer: {
+    width: '80%',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  addModalContent: {
+    padding: 8,
+  },
+  addModalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  addModalOptionText: {
+    fontSize: 16,
+    marginLeft: 12,
+    color: '#333',
   },
 });
 

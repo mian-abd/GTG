@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 
 // Import demo data
 import { MENTORS } from '../../utils/demoData';
@@ -19,11 +21,20 @@ import { getInitials } from '../../utils/helpers';
 // Using first mentor as the current mentor
 const currentMentor = MENTORS[0];
 
-const ProfileScreen = () => {
+const ProfileScreen = ({ onLogout, navigation }) => {
+  // Get theme context
+  const { theme, isDarkMode, toggleTheme, useSystemTheme, enableSystemTheme } = useTheme();
+  const auth = useAuth();
+  
   // State for settings
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailAlertsEnabled, setEmailAlertsEnabled] = useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
+  const [useDeviceTheme, setUseDeviceTheme] = useState(useSystemTheme);
+  
+  // Sync with theme context
+  useEffect(() => {
+    setUseDeviceTheme(useSystemTheme);
+  }, [useSystemTheme]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -36,24 +47,49 @@ const ProfileScreen = () => {
         },
         {
           text: 'Logout',
-          onPress: () => console.log('Logout pressed')
+          onPress: () => {
+            // Use the provided onLogout prop if available, otherwise use the auth context
+            if (onLogout) {
+              onLogout();
+            } else if (auth && auth.handleLogout) {
+              auth.handleLogout();
+            }
+          },
+          style: 'destructive'
         }
       ]
     );
   };
+  
+  const handleThemeToggle = (value) => {
+    toggleTheme(value);
+  };
+  
+  const handleDeviceThemeToggle = (value) => {
+    setUseDeviceTheme(value);
+    if (value) {
+      enableSystemTheme();
+    }
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.screenTitle}>Profile</Text>
-        <TouchableOpacity style={styles.editButton}>
-          <Ionicons name="create-outline" size={24} color="#4e73df" />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      <View style={[styles.header, { 
+        backgroundColor: theme.colors.background.secondary,
+        borderBottomColor: theme.colors.border
+      }]}>
+        <Text style={[styles.screenTitle, { color: theme.colors.text.primary }]}>Profile</Text>
+        <TouchableOpacity style={[styles.editButton, { backgroundColor: theme.colors.background.tertiary }]}>
+          <Ionicons name="create-outline" size={24} color={theme.colors.primary} />
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content}>
         {/* Profile Section */}
-        <View style={styles.profileSection}>
+        <View style={[styles.profileSection, { 
+          backgroundColor: theme.colors.card,
+          borderBottomColor: theme.colors.border
+        }]}>
           <View style={styles.profileHeader}>
             {currentMentor.profileImageUrl ? (
               <Image 
@@ -61,7 +97,7 @@ const ProfileScreen = () => {
                 style={styles.profileImage} 
               />
             ) : (
-              <View style={styles.profileImageFallback}>
+              <View style={[styles.profileImageFallback, { backgroundColor: theme.colors.primary }]}>
                 <Text style={styles.profileImageText}>
                   {getInitials(currentMentor.name)}
                 </Text>
@@ -69,119 +105,140 @@ const ProfileScreen = () => {
             )}
             
             <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>{currentMentor.name}</Text>
-              <Text style={styles.profileRole}>{currentMentor.department}</Text>
-              <Text style={styles.profileEmail}>{currentMentor.email}</Text>
+              <Text style={[styles.profileName, { color: theme.colors.text.primary }]}>{currentMentor.name}</Text>
+              <Text style={[styles.profileRole, { color: theme.colors.text.secondary }]}>{currentMentor.department}</Text>
+              <Text style={[styles.profileEmail, { color: theme.colors.text.secondary }]}>{currentMentor.email}</Text>
             </View>
           </View>
           
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{currentMentor.students.length}</Text>
-              <Text style={styles.statLabel}>Students</Text>
+              <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>{currentMentor.students.length}</Text>
+              <Text style={[styles.statLabel, { color: theme.colors.text.secondary }]}>Students</Text>
             </View>
             
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: theme.colors.border }]} />
             
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>12</Text>
-              <Text style={styles.statLabel}>Classes</Text>
+              <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>12</Text>
+              <Text style={[styles.statLabel, { color: theme.colors.text.secondary }]}>Classes</Text>
             </View>
             
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: theme.colors.border }]} />
             
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>5</Text>
-              <Text style={styles.statLabel}>Years</Text>
+              <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>5</Text>
+              <Text style={[styles.statLabel, { color: theme.colors.text.secondary }]}>Years</Text>
             </View>
           </View>
         </View>
         
         {/* Settings Section */}
-        <View style={styles.settingsSection}>
-          <Text style={styles.sectionTitle}>Settings</Text>
+        <View style={[styles.settingsSection, { 
+          backgroundColor: theme.colors.card,
+          borderBottomColor: theme.colors.border
+        }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Settings</Text>
           
-          <View style={styles.settingItem}>
+          <View style={[styles.settingItem, { borderBottomColor: theme.colors.border }]}>
             <View style={styles.settingLeft}>
-              <Ionicons name="notifications-outline" size={24} color="#666" style={styles.settingIcon} />
-              <Text style={styles.settingText}>Push Notifications</Text>
+              <Ionicons name="notifications-outline" size={24} color={theme.colors.text.secondary} style={styles.settingIcon} />
+              <Text style={[styles.settingText, { color: theme.colors.text.primary }]}>Push Notifications</Text>
             </View>
             <Switch
               value={notificationsEnabled}
               onValueChange={setNotificationsEnabled}
-              trackColor={{ false: "#ccc", true: "#4e73df" }}
+              trackColor={{ false: theme.colors.background.tertiary, true: theme.colors.primary }}
               thumbColor="#fff"
             />
           </View>
           
-          <View style={styles.settingItem}>
+          <View style={[styles.settingItem, { borderBottomColor: theme.colors.border }]}>
             <View style={styles.settingLeft}>
-              <Ionicons name="mail-outline" size={24} color="#666" style={styles.settingIcon} />
-              <Text style={styles.settingText}>Email Alerts</Text>
+              <Ionicons name="mail-outline" size={24} color={theme.colors.text.secondary} style={styles.settingIcon} />
+              <Text style={[styles.settingText, { color: theme.colors.text.primary }]}>Email Alerts</Text>
             </View>
             <Switch
               value={emailAlertsEnabled}
               onValueChange={setEmailAlertsEnabled}
-              trackColor={{ false: "#ccc", true: "#4e73df" }}
+              trackColor={{ false: theme.colors.background.tertiary, true: theme.colors.primary }}
               thumbColor="#fff"
             />
           </View>
           
-          <View style={styles.settingItem}>
+          <View style={[styles.settingItem, { borderBottomColor: theme.colors.border }]}>
             <View style={styles.settingLeft}>
-              <Ionicons name="moon-outline" size={24} color="#666" style={styles.settingIcon} />
-              <Text style={styles.settingText}>Dark Mode</Text>
+              <Ionicons name="phone-portrait-outline" size={24} color={theme.colors.text.secondary} style={styles.settingIcon} />
+              <Text style={[styles.settingText, { color: theme.colors.text.primary }]}>Use Device Theme</Text>
             </View>
             <Switch
-              value={darkModeEnabled}
-              onValueChange={setDarkModeEnabled}
-              trackColor={{ false: "#ccc", true: "#4e73df" }}
+              value={useDeviceTheme}
+              onValueChange={handleDeviceThemeToggle}
+              trackColor={{ false: theme.colors.background.tertiary, true: theme.colors.primary }}
               thumbColor="#fff"
             />
           </View>
+          
+          {!useDeviceTheme && (
+            <View style={[styles.settingItem, { borderBottomColor: theme.colors.border }]}>
+              <View style={styles.settingLeft}>
+                <Ionicons name="moon-outline" size={24} color={theme.colors.text.secondary} style={styles.settingIcon} />
+                <Text style={[styles.settingText, { color: theme.colors.text.primary }]}>Dark Mode</Text>
+              </View>
+              <Switch
+                value={isDarkMode}
+                onValueChange={handleThemeToggle}
+                trackColor={{ false: theme.colors.background.tertiary, true: theme.colors.primary }}
+                thumbColor="#fff"
+              />
+            </View>
+          )}
         </View>
         
         {/* Account Section */}
-        <View style={styles.accountSection}>
-          <Text style={styles.sectionTitle}>Account</Text>
+        <View style={[styles.accountSection, { 
+          backgroundColor: theme.colors.card,
+          borderBottomColor: theme.colors.border
+        }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Account</Text>
           
-          <TouchableOpacity style={styles.accountItem}>
+          <TouchableOpacity style={[styles.accountItem, { borderBottomColor: theme.colors.border }]}>
             <View style={styles.accountItemLeft}>
-              <Ionicons name="person-outline" size={24} color="#666" style={styles.accountIcon} />
-              <Text style={styles.accountText}>Edit Profile</Text>
+              <Ionicons name="person-outline" size={24} color={theme.colors.text.secondary} style={styles.accountIcon} />
+              <Text style={[styles.accountText, { color: theme.colors.text.primary }]}>Edit Profile</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.text.tertiary} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.accountItem}>
+          <TouchableOpacity style={[styles.accountItem, { borderBottomColor: theme.colors.border }]}>
             <View style={styles.accountItemLeft}>
-              <Ionicons name="lock-closed-outline" size={24} color="#666" style={styles.accountIcon} />
-              <Text style={styles.accountText}>Change Password</Text>
+              <Ionicons name="lock-closed-outline" size={24} color={theme.colors.text.secondary} style={styles.accountIcon} />
+              <Text style={[styles.accountText, { color: theme.colors.text.primary }]}>Change Password</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.text.tertiary} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.accountItem}>
+          <TouchableOpacity style={[styles.accountItem, { borderBottomColor: theme.colors.border }]}>
             <View style={styles.accountItemLeft}>
-              <Ionicons name="help-circle-outline" size={24} color="#666" style={styles.accountIcon} />
-              <Text style={styles.accountText}>Help & Support</Text>
+              <Ionicons name="help-circle-outline" size={24} color={theme.colors.text.secondary} style={styles.accountIcon} />
+              <Text style={[styles.accountText, { color: theme.colors.text.primary }]}>Help & Support</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.text.tertiary} />
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={[styles.accountItem, styles.logoutItem]} 
+            style={styles.accountItem} 
             onPress={handleLogout}
           >
             <View style={styles.accountItemLeft}>
-              <Ionicons name="log-out-outline" size={24} color="#ff3b30" style={styles.accountIcon} />
+              <Ionicons name="log-out-outline" size={24} color={theme.colors.accent} style={styles.accountIcon} />
               <Text style={[styles.accountText, styles.logoutText]}>Logout</Text>
             </View>
           </TouchableOpacity>
         </View>
         
         <View style={styles.footer}>
-          <Text style={styles.versionText}>Version 1.0.0</Text>
+          <Text style={[styles.versionText, { color: theme.colors.text.tertiary }]}>Version 1.0.0</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

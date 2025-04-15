@@ -1,23 +1,30 @@
 import React from 'react';
 import { StyleSheet, View, TouchableOpacity } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 const Card = ({ 
   children, 
   onPress, 
   style,
-  backgroundColor = '#333',
+  backgroundColor,
   borderRadius = 8,
   elevation = 0,
   padding = 16,
 }) => {
+  const { theme } = useTheme();
+  
+  // Use provided backgroundColor or default from the theme
+  const bgColor = backgroundColor || theme.colors.card;
+  
   const cardContent = (
     <View 
       style={[
         styles.card, 
         { 
-          backgroundColor,
+          backgroundColor: bgColor,
           borderRadius,
           padding,
+          borderColor: theme.colors.border,
           ...(elevation > 0 ? { elevation } : {})
         },
         style
@@ -51,6 +58,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
+    borderWidth: 1,
   },
 });
 

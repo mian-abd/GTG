@@ -11,6 +11,7 @@ const ManageMentorsScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMentor, setSelectedMentor] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [addModalVisible, setAddModalVisible] = useState(false);
   
   // Filter mentors based on search
   const filteredMentors = mentors.filter(mentor => 
@@ -23,6 +24,54 @@ const ManageMentorsScreen = () => {
     setSelectedMentor(mentor);
     setModalVisible(true);
   };
+
+  const handleAddMentor = () => {
+    setAddModalVisible(true);
+  };
+
+  // Add Option Modal
+  const AddOptionModal = () => (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={addModalVisible}
+      onRequestClose={() => setAddModalVisible(false)}
+    >
+      <TouchableOpacity 
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={() => setAddModalVisible(false)}
+      >
+        <View style={styles.addModalContainer}>
+          <View style={styles.addModalContent}>
+            <TouchableOpacity 
+              style={styles.addModalOption}
+              onPress={() => {
+                setAddModalVisible(false);
+                // Open form to add mentor
+                console.log('Add mentor manually');
+              }}
+            >
+              <Ionicons name="person-add-outline" size={22} color="#333" />
+              <Text style={styles.addModalOptionText}>Add Mentor Manually</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.addModalOption}
+              onPress={() => {
+                setAddModalVisible(false);
+                // Import from Excel
+                console.log('Import mentors from Excel');
+              }}
+            >
+              <Ionicons name="document-outline" size={22} color="#333" />
+              <Text style={styles.addModalOptionText}>Import from Excel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
 
   const MentorDetailModal = () => (
     <Modal
@@ -123,11 +172,15 @@ const ManageMentorsScreen = () => {
         contentContainerStyle={styles.listContainer}
       />
 
-      <TouchableOpacity style={styles.addButton}>
+      <TouchableOpacity 
+        style={styles.addButton}
+        onPress={handleAddMentor}
+      >
         <Ionicons name="add" size={30} color="white" />
       </TouchableOpacity>
 
       <MentorDetailModal />
+      <AddOptionModal />
     </SafeAreaView>
   );
 };
@@ -293,6 +346,38 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     marginLeft: 6,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addModalContainer: {
+    width: '80%',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  addModalContent: {
+    padding: 8,
+  },
+  addModalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  addModalOptionText: {
+    fontSize: 16,
+    marginLeft: 12,
+    color: '#333',
   },
 });
 

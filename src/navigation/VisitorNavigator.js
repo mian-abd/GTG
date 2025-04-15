@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
 // Visitor Screens
 import VisitorHomeScreen from '../screens/visitor/VisitorHomeScreen';
@@ -55,6 +56,8 @@ const ProfileStack = () => (
 );
 
 const VisitorNavigator = () => {
+  const { theme } = useTheme();
+  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -75,9 +78,16 @@ const VisitorNavigator = () => {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#F9A826',
-        tabBarInactiveTintColor: 'gray',
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.text.tertiary,
         headerShown: false,
+        tabBarStyle: {
+          backgroundColor: theme.colors.background.secondary,
+          borderTopColor: theme.colors.border,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+        }
       })}
     >
       <Tab.Screen 

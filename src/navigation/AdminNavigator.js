@@ -2,14 +2,15 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
 // Admin Screens
 import DashboardScreen from '../screens/admin/DashboardScreen';
-import ManageVisitorsScreen from '../screens/admin/ManageVisitorsScreen';
 import ManageMentorsScreen from '../screens/admin/ManageMentorsScreen';
-import ProgramScheduleScreen from '../screens/admin/ProgramScheduleScreen';
-import SettingsScreen from '../screens/admin/SettingsScreen';
 import UserManagementScreen from '../screens/admin/UserManagementScreen';
+import SettingsScreen from '../screens/admin/SettingsScreen';
+import ProgramScheduleScreen from '../screens/admin/ProgramScheduleScreen';
+import ManageVisitorsScreen from '../screens/admin/ManageVisitorsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -21,24 +22,25 @@ const DashboardStack = () => (
   </Stack.Navigator>
 );
 
-// Visitors Stack
-const VisitorsStack = () => (
+// Program Stack - for scheduling activities and classes
+const ProgramStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="ManageVisitors" component={ManageVisitorsScreen} />
+    <Stack.Screen name="ProgramSchedule" component={ProgramScheduleScreen} />
   </Stack.Navigator>
 );
 
-// Mentors Stack
+// Mentors Stack - for managing mentors
 const MentorsStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="ManageMentors" component={ManageMentorsScreen} />
   </Stack.Navigator>
 );
 
-// Schedule Stack
-const ScheduleStack = () => (
+// Users Stack - for managing all users including students
+const UsersStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="ProgramSchedule" component={ProgramScheduleScreen} />
+    <Stack.Screen name="UserManagement" component={UserManagementScreen} />
+    <Stack.Screen name="ManageVisitors" component={ManageVisitorsScreen} />
   </Stack.Navigator>
 );
 
@@ -46,11 +48,12 @@ const ScheduleStack = () => (
 const SettingsStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="Settings" component={SettingsScreen} />
-    <Stack.Screen name="UserManagement" component={UserManagementScreen} />
   </Stack.Navigator>
 );
 
 const AdminNavigator = () => {
+  const { theme } = useTheme();
+  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -59,21 +62,28 @@ const AdminNavigator = () => {
 
           if (route.name === 'DashboardTab') {
             iconName = focused ? 'grid' : 'grid-outline';
-          } else if (route.name === 'VisitorsTab') {
-            iconName = focused ? 'people' : 'people-outline';
-          } else if (route.name === 'MentorsTab') {
-            iconName = focused ? 'school' : 'school-outline';
-          } else if (route.name === 'ScheduleTab') {
+          } else if (route.name === 'ProgramTab') {
             iconName = focused ? 'calendar' : 'calendar-outline';
+          } else if (route.name === 'MentorsTab') {
+            iconName = focused ? 'people' : 'people-outline';
+          } else if (route.name === 'UsersTab') {
+            iconName = focused ? 'person' : 'person-outline';
           } else if (route.name === 'SettingsTab') {
             iconName = focused ? 'settings' : 'settings-outline';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: 'goldenrod',
-        tabBarInactiveTintColor: 'gray',
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.text.tertiary,
         headerShown: false,
+        tabBarStyle: {
+          backgroundColor: theme.colors.background.secondary,
+          borderTopColor: theme.colors.border,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+        }
       })}
     >
       <Tab.Screen 
@@ -82,9 +92,9 @@ const AdminNavigator = () => {
         options={{ title: 'Dashboard' }}
       />
       <Tab.Screen 
-        name="VisitorsTab" 
-        component={VisitorsStack} 
-        options={{ title: 'Visitors' }}
+        name="ProgramTab" 
+        component={ProgramStack} 
+        options={{ title: 'Schedule' }}
       />
       <Tab.Screen 
         name="MentorsTab" 
@@ -92,9 +102,9 @@ const AdminNavigator = () => {
         options={{ title: 'Mentors' }}
       />
       <Tab.Screen 
-        name="ScheduleTab" 
-        component={ScheduleStack} 
-        options={{ title: 'Schedule' }}
+        name="UsersTab" 
+        component={UsersStack} 
+        options={{ title: 'Users' }}
       />
       <Tab.Screen 
         name="SettingsTab" 

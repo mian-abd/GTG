@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../context/ThemeContext';
 
 const Header = ({ 
   title, 
@@ -17,47 +18,58 @@ const Header = ({
   rightIcon = null,
   onRightIconPress,
   onMenuPress,
-  backgroundColor = '#1A1A1A',
-  iconColor = '#FFF'
+  backgroundColor,
+  iconColor
 }) => {
   const navigation = useNavigation();
+  const { theme } = useTheme();
+  
+  // Use provided colors or defaults from the theme
+  const bgColor = backgroundColor || theme.colors.background.primary;
+  const iconClr = iconColor || theme.colors.text.primary;
 
   const handleBack = () => {
     navigation.goBack();
   };
 
   return (
-    <View style={[styles.header, { backgroundColor }]}>
-      <StatusBar barStyle="light-content" backgroundColor={backgroundColor} />
+    <View style={[
+      styles.header, 
+      { 
+        backgroundColor: bgColor,
+        borderBottomColor: theme.colors.border
+      }
+    ]}>
+      <StatusBar barStyle={theme.colors.statusBar} backgroundColor={bgColor} />
       
       <View style={styles.leftContainer}>
         {showBackButton && (
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={iconColor} />
+            <Ionicons name="arrow-back" size={24} color={iconClr} />
           </TouchableOpacity>
         )}
         
         {showMenuButton && (
           <TouchableOpacity onPress={onMenuPress} style={styles.menuButton}>
-            <Ionicons name="menu" size={24} color={iconColor} />
+            <Ionicons name="menu" size={24} color={iconClr} />
           </TouchableOpacity>
         )}
         
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>{title}</Text>
+          <Text style={[styles.title, { color: theme.colors.text.primary }]}>{title}</Text>
         </View>
       </View>
       
       <View style={styles.rightContainer}>
         {rightIcon && (
           <TouchableOpacity onPress={onRightIconPress} style={styles.rightButton}>
-            <Ionicons name={rightIcon} size={24} color={iconColor} />
+            <Ionicons name={rightIcon} size={24} color={iconClr} />
           </TouchableOpacity>
         )}
         
         {showLogoutButton && (
           <TouchableOpacity style={styles.logoutButton}>
-            <Ionicons name="log-out-outline" size={24} color={iconColor} />
+            <Ionicons name="log-out-outline" size={24} color={iconClr} />
           </TouchableOpacity>
         )}
       </View>
@@ -72,7 +84,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   leftContainer: {
     flexDirection: 'row',
@@ -89,7 +100,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
   },
