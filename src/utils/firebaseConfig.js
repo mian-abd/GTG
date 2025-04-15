@@ -133,7 +133,8 @@ export const deleteDocument = async (collectionName, documentId) => {
     return true;
   } catch (error) {
     console.error('Delete document error:', error);
-    throw error;
+    // Return false instead of throwing to allow UI to handle deletion gracefully
+    return false;
   }
 };
 

@@ -1,17 +1,90 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+
+// Import Firebase functions
+import { getDocuments, updateDocument, deleteDocument } from '../../utils/firebaseConfig';
 
 // Import demo data
 import { STUDENTS } from '../../utils/demoData';
 
 const ManageVisitorsScreen = () => {
-  const [visitors, setVisitors] = useState(STUDENTS);
+  const [visitors, setVisitors] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVisitor, setSelectedVisitor] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
   
+  // Fetch visitors from Firebase
+  useEffect(() => {
+    fetchVisitors();
+  }, []);
+
+  const fetchVisitors = async () => {
+    try {
+      setLoading(true);
+      const fetchedVisitors = await getDocuments('visitors');
+      if (fetchedVisitors && fetchedVisitors.length > 0) {
+        setVisitors(fetchedVisitors);
+      } else {
+        // Fallback to demo data if no data in Firebase
+        setVisitors(STUDENTS);
+      }
+    } catch (error) {
+      console.error('Error fetching visitors:', error);
+      // Fallback to demo data
+      setVisitors(STUDENTS);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle edit visitor
+  const handleEditVisitor = (visitor) => {
+    // Navigate to edit form or show edit modal
+    console.log('Edit visitor:', visitor);
+    Alert.alert('Edit Visitor', 'This functionality will be implemented soon.');
+  };
+
+  // Handle delete visitor
+  const handleDeleteVisitor = async (visitor) => {
+    Alert.alert(
+      'Delete Visitor',
+      `Are you sure you want to delete ${visitor.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              // If using Firebase
+              if (visitor.id) {
+                await deleteDocument('visitors', visitor.id);
+              }
+              
+              // Update local state
+              setVisitors(prev => prev.filter(v => v.id !== visitor.id));
+              
+              // Close modal first, then clean up selected visitor reference
+              setModalVisible(false);
+              setTimeout(() => {
+                setSelectedVisitor(null);
+              }, 100);
+            } catch (error) {
+              console.error('Error deleting visitor:', error);
+              Alert.alert('Error', 'Failed to delete visitor');
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // Filter visitors based on search
   const filteredVisitors = visitors.filter(visitor => 
     visitor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -19,8 +92,10 @@ const ManageVisitorsScreen = () => {
   );
 
   const handleSelectVisitor = (visitor) => {
-    setSelectedVisitor(visitor);
-    setModalVisible(true);
+    if (visitor) {
+      setSelectedVisitor({...visitor}); // Create a copy instead of a reference
+      setModalVisible(true);
+    }
   };
 
   const VisitorDetailModal = () => (
@@ -49,31 +124,37 @@ const ManageVisitorsScreen = () => {
                 </View>
 
                 <View style={styles.detailSection}>
-                  <Text style={styles.sectionTitle}>Room Assignment</Text>
-                  <Text style={styles.detailItem}>Building: {selectedVisitor.roomAssignment.building}</Text>
-                  <Text style={styles.detailItem}>Room: {selectedVisitor.roomAssignment.roomNumber}</Text>
+                  <Text style={styles.sectionTitle}>Program Information</Text>
+                  <Text style={styles.detailItem}>Mentor: {selectedVisitor.mentorId}</Text>
+                  <Text style={styles.detailItem}>Progress: {selectedVisitor.progress}%</Text>
                 </View>
 
                 <View style={styles.detailSection}>
                   <Text style={styles.sectionTitle}>Medical Information</Text>
-                  <Text style={styles.detailItem}>Allergies: {selectedVisitor.medicalInfo.allergies.join(', ') || 'None'}</Text>
-                  <Text style={styles.detailItem}>Medications: {selectedVisitor.medicalInfo.medications.join(', ') || 'None'}</Text>
-                  <Text style={styles.detailItem}>Medical Conditions: {selectedVisitor.medicalInfo.conditions.join(', ') || 'None'}</Text>
+                  <Text style={styles.detailItem}>Allergies: {selectedVisitor.medicalInfo?.allergies?.join(', ') || 'None'}</Text>
+                  <Text style={styles.detailItem}>Medications: {selectedVisitor.medicalInfo?.medications?.join(', ') || 'None'}</Text>
+                  <Text style={styles.detailItem}>Medical Conditions: {selectedVisitor.medicalInfo?.conditions?.join(', ') || 'None'}</Text>
                 </View>
 
                 <View style={styles.detailSection}>
                   <Text style={styles.sectionTitle}>Emergency Contact</Text>
-                  <Text style={styles.detailItem}>Name: {selectedVisitor.emergencyContact.name}</Text>
-                  <Text style={styles.detailItem}>Relationship: {selectedVisitor.emergencyContact.relationship}</Text>
-                  <Text style={styles.detailItem}>Phone: {selectedVisitor.emergencyContact.phone}</Text>
+                  <Text style={styles.detailItem}>Name: {selectedVisitor.emergencyContact?.name || 'N/A'}</Text>
+                  <Text style={styles.detailItem}>Relationship: {selectedVisitor.emergencyContact?.relationship || 'N/A'}</Text>
+                  <Text style={styles.detailItem}>Phone: {selectedVisitor.emergencyContact?.phone || 'N/A'}</Text>
                 </View>
 
                 <View style={styles.buttonContainer}>
-                  <TouchableOpacity style={[styles.actionButton, styles.editButton]}>
+                  <TouchableOpacity 
+                    style={[styles.actionButton, styles.editButton]}
+                    onPress={() => handleEditVisitor(selectedVisitor)}
+                  >
                     <Ionicons name="create-outline" size={18} color="white" />
                     <Text style={styles.buttonText}>Edit</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.actionButton, styles.deleteButton]}>
+                  <TouchableOpacity 
+                    style={[styles.actionButton, styles.deleteButton]}
+                    onPress={() => handleDeleteVisitor(selectedVisitor)}
+                  >
                     <Ionicons name="trash-outline" size={18} color="white" />
                     <Text style={styles.buttonText}>Delete</Text>
                   </TouchableOpacity>

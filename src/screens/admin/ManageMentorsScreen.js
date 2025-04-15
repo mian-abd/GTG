@@ -1,33 +1,235 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+
+// Import Firebase functions
+import { getDocuments, updateDocument, deleteDocument, addDocument } from '../../utils/firebaseConfig';
 
 // Import demo data
 import { MENTORS } from '../../utils/demoData';
 
 const ManageMentorsScreen = () => {
-  const [mentors, setMentors] = useState(MENTORS);
+  const [mentors, setMentors] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMentor, setSelectedMentor] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [addFormVisible, setAddFormVisible] = useState(false);
+  const [newMentor, setNewMentor] = useState({
+    name: '',
+    email: '',
+    department: '',
+    biography: '',
+    students: []
+  });
+  
+  // Fetch mentors from Firebase
+  useEffect(() => {
+    fetchMentors();
+  }, []);
+
+  const fetchMentors = async () => {
+    try {
+      setLoading(true);
+      const fetchedMentors = await getDocuments('mentors');
+      if (fetchedMentors && fetchedMentors.length > 0) {
+        setMentors(fetchedMentors);
+      } else {
+        // Fallback to demo data if no data in Firebase
+        setMentors(MENTORS);
+      }
+    } catch (error) {
+      console.error('Error fetching mentors:', error);
+      // Fallback to demo data
+      setMentors(MENTORS);
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // Filter mentors based on search
   const filteredMentors = mentors.filter(mentor => 
-    mentor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    mentor.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    mentor.department.toLowerCase().includes(searchQuery.toLowerCase())
+    mentor.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    mentor.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    mentor.department?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleSelectMentor = (mentor) => {
-    setSelectedMentor(mentor);
-    setModalVisible(true);
+    if (mentor) {
+      setSelectedMentor({...mentor}); // Create a copy instead of a reference
+      setModalVisible(true);
+    }
   };
 
   const handleAddMentor = () => {
     setAddModalVisible(true);
   };
+
+  // Handle edit mentor
+  const handleEditMentor = (mentor) => {
+    // Navigate to edit form or show edit modal
+    console.log('Edit mentor:', mentor);
+    Alert.alert('Edit Mentor', 'This functionality will be implemented soon.');
+  };
+
+  // Handle delete mentor
+  const handleDeleteMentor = async (mentor) => {
+    Alert.alert(
+      'Delete Mentor',
+      `Are you sure you want to delete ${mentor.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              // If using Firebase
+              if (mentor.id) {
+                await deleteDocument('mentors', mentor.id);
+              }
+              
+              // Update local state
+              setMentors(prev => prev.filter(m => m.id !== mentor.id));
+              
+              // Close modal first, then clean up selected mentor reference
+              setModalVisible(false);
+              setTimeout(() => {
+                setSelectedMentor(null);
+              }, 100);
+            } catch (error) {
+              console.error('Error deleting mentor:', error);
+              Alert.alert('Error', 'Failed to delete mentor');
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Handle add mentor form submit
+  const handleAddMentorSubmit = async () => {
+    // Validate form
+    if (!newMentor.name || !newMentor.email || !newMentor.department) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // Add to Firebase
+      const mentorId = await addDocument('mentors', newMentor);
+      
+      // Update local state
+      const addedMentor = {
+        id: mentorId,
+        ...newMentor
+      };
+      
+      setMentors(prev => [...prev, addedMentor]);
+      
+      // Reset form and close modal
+      setNewMentor({
+        name: '',
+        email: '',
+        department: '',
+        biography: '',
+        students: []
+      });
+      
+      setAddFormVisible(false);
+      setAddModalVisible(false);
+      
+    } catch (error) {
+      console.error('Error adding mentor:', error);
+      Alert.alert('Error', 'Failed to add mentor');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add mentor form modal
+  const AddMentorFormModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={addFormVisible}
+      onRequestClose={() => setAddFormVisible(false)}
+    >
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <ScrollView>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add New Mentor</Text>
+              <TouchableOpacity onPress={() => setAddFormVisible(false)}>
+                <Ionicons name="close" size={24} color="black" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Name *</Text>
+              <TextInput
+                style={styles.input}
+                value={newMentor.name}
+                onChangeText={(text) => setNewMentor(prev => ({ ...prev, name: text }))}
+                placeholder="Enter name"
+              />
+            </View>
+            
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Email *</Text>
+              <TextInput
+                style={styles.input}
+                value={newMentor.email}
+                onChangeText={(text) => setNewMentor(prev => ({ ...prev, email: text }))}
+                placeholder="Enter email"
+                keyboardType="email-address"
+              />
+            </View>
+            
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Department *</Text>
+              <TextInput
+                style={styles.input}
+                value={newMentor.department}
+                onChangeText={(text) => setNewMentor(prev => ({ ...prev, department: text }))}
+                placeholder="Enter department"
+              />
+            </View>
+            
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Biography</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={newMentor.biography}
+                onChangeText={(text) => setNewMentor(prev => ({ ...prev, biography: text }))}
+                placeholder="Enter biography"
+                multiline
+                numberOfLines={4}
+              />
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.submitButton}
+              onPress={handleAddMentorSubmit}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text style={styles.submitButtonText}>Add Mentor</Text>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
 
   // Add Option Modal
   const AddOptionModal = () => (
@@ -48,8 +250,7 @@ const ManageMentorsScreen = () => {
               style={styles.addModalOption}
               onPress={() => {
                 setAddModalVisible(false);
-                // Open form to add mentor
-                console.log('Add mentor manually');
+                setAddFormVisible(true);
               }}
             >
               <Ionicons name="person-add-outline" size={22} color="#333" />
@@ -61,7 +262,7 @@ const ManageMentorsScreen = () => {
               onPress={() => {
                 setAddModalVisible(false);
                 // Import from Excel
-                console.log('Import mentors from Excel');
+                Alert.alert('Import from Excel', 'This functionality will be implemented soon.');
               }}
             >
               <Ionicons name="document-outline" size={22} color="#333" />
@@ -105,7 +306,7 @@ const ManageMentorsScreen = () => {
 
                 <View style={styles.detailSection}>
                   <Text style={styles.sectionTitle}>Students</Text>
-                  {selectedMentor.students.length > 0 ? (
+                  {selectedMentor.students && selectedMentor.students.length > 0 ? (
                     selectedMentor.students.map((studentId, index) => (
                       <Text key={index} style={styles.detailItem}>• Student ID: {studentId}</Text>
                     ))
@@ -115,11 +316,17 @@ const ManageMentorsScreen = () => {
                 </View>
 
                 <View style={styles.buttonContainer}>
-                  <TouchableOpacity style={[styles.actionButton, styles.editButton]}>
+                  <TouchableOpacity 
+                    style={[styles.actionButton, styles.editButton]}
+                    onPress={() => handleEditMentor(selectedMentor)}
+                  >
                     <Ionicons name="create-outline" size={18} color="white" />
                     <Text style={styles.buttonText}>Edit</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.actionButton, styles.deleteButton]}>
+                  <TouchableOpacity 
+                    style={[styles.actionButton, styles.deleteButton]}
+                    onPress={() => handleDeleteMentor(selectedMentor)}
+                  >
                     <Ionicons name="trash-outline" size={18} color="white" />
                     <Text style={styles.buttonText}>Delete</Text>
                   </TouchableOpacity>
@@ -181,6 +388,7 @@ const ManageMentorsScreen = () => {
 
       <MentorDetailModal />
       <AddOptionModal />
+      <AddMentorFormModal />
     </SafeAreaView>
   );
 };
@@ -378,6 +586,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 12,
     color: '#333',
+  },
+  formGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 16,
+    marginBottom: 8,
+    fontWeight: '500',
+    color: '#333',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#f9f9f9',
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  submitButton: {
+    backgroundColor: '#4a6ea9',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 30,
+  },
+  submitButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

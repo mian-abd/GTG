@@ -1,38 +1,414 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+
+// Import Firebase functions
+import { getDocuments, updateDocument, deleteDocument, addDocument } from '../../utils/firebaseConfig';
 
 // Import demo data
 import { ACTIVITIES, CLASSES } from '../../utils/demoData';
 
 const ProgramScheduleScreen = () => {
   const [activeTab, setActiveTab] = useState('activities');
+  const [items, setItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [addFormVisible, setAddFormVisible] = useState(false);
   
-  // Filter data based on search and active tab
-  const filteredData = activeTab === 'activities' 
-    ? ACTIVITIES.filter(activity => 
-        activity.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        activity.description.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : CLASSES.filter(classItem => 
-        classItem.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        classItem.instructor.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        classItem.description.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+  // Form state for new activity
+  const [newActivity, setNewActivity] = useState({
+    name: '',
+    date: '',
+    time: '',
+    location: '',
+    description: '',
+    participants: []
+  });
+
+  // Form state for new class
+  const [newClass, setNewClass] = useState({
+    name: '',
+    instructor: '',
+    schedule: {
+      days: [],
+      time: ''
+    },
+    location: '',
+    description: ''
+  });
+  
+  useEffect(() => {
+    if (activeTab === 'activities') {
+      fetchActivities();
+    } else {
+      fetchClasses();
+    }
+  }, [activeTab]);
+
+  const fetchActivities = async () => {
+    try {
+      setLoading(true);
+      const fetchedActivities = await getDocuments('activities');
+      if (fetchedActivities && fetchedActivities.length > 0) {
+        setItems(fetchedActivities);
+      } else {
+        // Fallback to demo data if no data in Firebase
+        setItems(ACTIVITIES);
+      }
+    } catch (error) {
+      console.error('Error fetching activities:', error);
+      // Fallback to demo data
+      setItems(ACTIVITIES);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchClasses = async () => {
+    try {
+      setLoading(true);
+      const fetchedClasses = await getDocuments('classes');
+      if (fetchedClasses && fetchedClasses.length > 0) {
+        setItems(fetchedClasses);
+      } else {
+        // Fallback to demo data if no data in Firebase
+        setItems(CLASSES);
+      }
+    } catch (error) {
+      console.error('Error fetching classes:', error);
+      // Fallback to demo data
+      setItems(CLASSES);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle edit item
+  const handleEditItem = (item) => {
+    // Navigate to edit form or show edit modal
+    console.log('Edit item:', item);
+    Alert.alert('Edit Item', 'This functionality will be implemented soon.');
+  };
+
+  // Handle delete item
+  const handleDeleteItem = async (item) => {
+    const collectionName = activeTab === 'activities' ? 'activities' : 'classes';
+    
+    Alert.alert(
+      'Delete Item',
+      `Are you sure you want to delete ${item.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              // If using Firebase
+              if (item.id) {
+                await deleteDocument(collectionName, item.id);
+              }
+              
+              // Update local state
+              setItems(prev => prev.filter(i => i.id !== item.id));
+              
+              // Close modal first, then clean up selected item reference
+              setModalVisible(false);
+              setTimeout(() => {
+                setSelectedItem(null);
+              }, 100);
+            } catch (error) {
+              console.error('Error deleting item:', error);
+              Alert.alert('Error', 'Failed to delete item');
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
 
   const handleSelectItem = (item) => {
-    setSelectedItem(item);
-    setModalVisible(true);
+    if (item) {
+      setSelectedItem({...item}); // Create a copy instead of a reference
+      setModalVisible(true);
+    }
   };
 
   const handleAddItem = () => {
     setAddModalVisible(true);
   };
+
+  // Handle add activity submit
+  const handleAddActivitySubmit = async () => {
+    // Validate form
+    if (!newActivity.name || !newActivity.date || !newActivity.time || !newActivity.location) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // Add to Firebase
+      const activityId = await addDocument('activities', newActivity);
+      
+      // Update local state
+      const addedActivity = {
+        id: activityId,
+        ...newActivity
+      };
+      
+      setItems(prev => [...prev, addedActivity]);
+      
+      // Reset form and close modal
+      setNewActivity({
+        name: '',
+        date: '',
+        time: '',
+        location: '',
+        description: '',
+        participants: []
+      });
+      
+      setAddFormVisible(false);
+      setAddModalVisible(false);
+      
+      // Remove success alert to prevent app from freezing
+    } catch (error) {
+      console.error('Error adding activity:', error);
+      Alert.alert('Error', 'Failed to add activity');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle add class submit
+  const handleAddClassSubmit = async () => {
+    // Validate form
+    if (!newClass.name || !newClass.instructor || !newClass.location) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // Add to Firebase
+      const classId = await addDocument('classes', newClass);
+      
+      // Update local state
+      const addedClass = {
+        id: classId,
+        ...newClass
+      };
+      
+      setItems(prev => [...prev, addedClass]);
+      
+      // Reset form and close modal
+      setNewClass({
+        name: '',
+        instructor: '',
+        schedule: {
+          days: [],
+          time: ''
+        },
+        location: '',
+        description: ''
+      });
+      
+      setAddFormVisible(false);
+      setAddModalVisible(false);
+      
+      // Remove success alert to prevent app from freezing
+    } catch (error) {
+      console.error('Error adding class:', error);
+      Alert.alert('Error', 'Failed to add class');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add form modal
+  const AddFormModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={addFormVisible}
+      onRequestClose={() => setAddFormVisible(false)}
+    >
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <ScrollView>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {activeTab === 'activities' ? 'Add New Activity' : 'Add New Class'}
+              </Text>
+              <TouchableOpacity onPress={() => setAddFormVisible(false)}>
+                <Ionicons name="close" size={24} color="black" />
+              </TouchableOpacity>
+            </View>
+            
+            {activeTab === 'activities' ? (
+              // Activity form
+              <>
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Activity Name *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={newActivity.name}
+                    onChangeText={(text) => setNewActivity(prev => ({ ...prev, name: text }))}
+                    placeholder="Enter activity name"
+                  />
+                </View>
+                
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Date *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={newActivity.date}
+                    onChangeText={(text) => setNewActivity(prev => ({ ...prev, date: text }))}
+                    placeholder="YYYY-MM-DD"
+                  />
+                </View>
+                
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Time *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={newActivity.time}
+                    onChangeText={(text) => setNewActivity(prev => ({ ...prev, time: text }))}
+                    placeholder="HH:MM"
+                  />
+                </View>
+                
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Location *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={newActivity.location}
+                    onChangeText={(text) => setNewActivity(prev => ({ ...prev, location: text }))}
+                    placeholder="Enter location"
+                  />
+                </View>
+                
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Description</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={newActivity.description}
+                    onChangeText={(text) => setNewActivity(prev => ({ ...prev, description: text }))}
+                    placeholder="Enter description"
+                    multiline
+                    numberOfLines={4}
+                  />
+                </View>
+                
+                <TouchableOpacity 
+                  style={styles.submitButton}
+                  onPress={handleAddActivitySubmit}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text style={styles.submitButtonText}>Add Activity</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            ) : (
+              // Class form
+              <>
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Class Name *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={newClass.name}
+                    onChangeText={(text) => setNewClass(prev => ({ ...prev, name: text }))}
+                    placeholder="Enter class name"
+                  />
+                </View>
+                
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Instructor *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={newClass.instructor}
+                    onChangeText={(text) => setNewClass(prev => ({ ...prev, instructor: text }))}
+                    placeholder="Enter instructor name"
+                  />
+                </View>
+                
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Schedule Time</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={newClass.schedule.time}
+                    onChangeText={(text) => setNewClass(prev => ({ 
+                      ...prev, 
+                      schedule: { ...prev.schedule, time: text } 
+                    }))}
+                    placeholder="HH:MM"
+                  />
+                </View>
+                
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Schedule Days</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={newClass.schedule.days.join(', ')}
+                    onChangeText={(text) => setNewClass(prev => ({ 
+                      ...prev, 
+                      schedule: { ...prev.schedule, days: text.split(', ') } 
+                    }))}
+                    placeholder="Monday, Wednesday, Friday"
+                  />
+                </View>
+                
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Location *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={newClass.location}
+                    onChangeText={(text) => setNewClass(prev => ({ ...prev, location: text }))}
+                    placeholder="Enter location"
+                  />
+                </View>
+                
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Description</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={newClass.description}
+                    onChangeText={(text) => setNewClass(prev => ({ ...prev, description: text }))}
+                    placeholder="Enter description"
+                    multiline
+                    numberOfLines={4}
+                  />
+                </View>
+                
+                <TouchableOpacity 
+                  style={styles.submitButton}
+                  onPress={handleAddClassSubmit}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text style={styles.submitButtonText}>Add Class</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
 
   // Add Option Modal
   const AddOptionModal = () => (
@@ -53,17 +429,12 @@ const ProgramScheduleScreen = () => {
               style={styles.addModalOption}
               onPress={() => {
                 setAddModalVisible(false);
-                // Open form to add item
-                console.log(`Add ${activeTab === 'activities' ? 'Activity' : 'Class'} manually`);
+                setAddFormVisible(true);
               }}
             >
-              <Ionicons 
-                name={activeTab === 'activities' ? 'calendar-outline' : 'school-outline'} 
-                size={22} 
-                color="#333" 
-              />
+              <Ionicons name="add-circle-outline" size={22} color="#333" />
               <Text style={styles.addModalOptionText}>
-                Add {activeTab === 'activities' ? 'Activity' : 'Class'} Manually
+                {activeTab === 'activities' ? 'Add Activity Manually' : 'Add Class Manually'}
               </Text>
             </TouchableOpacity>
             
@@ -72,7 +443,7 @@ const ProgramScheduleScreen = () => {
               onPress={() => {
                 setAddModalVisible(false);
                 // Import from Excel
-                console.log(`Import ${activeTab === 'activities' ? 'Activities' : 'Classes'} from Excel`);
+                Alert.alert('Import from Excel', 'This functionality will be implemented soon.');
               }}
             >
               <Ionicons name="document-outline" size={22} color="#333" />
@@ -103,66 +474,53 @@ const ProgramScheduleScreen = () => {
                   </TouchableOpacity>
                 </View>
                 
-                {activeTab === 'activities' ? (
-                  <>
-                    <View style={styles.detailSection}>
-                      <Text style={styles.sectionTitle}>Date & Time</Text>
+                <View style={styles.detailSection}>
+                  <Text style={styles.sectionTitle}>Details</Text>
+                  {activeTab === 'activities' ? (
+                    <>
                       <Text style={styles.detailItem}>Date: {selectedItem.date}</Text>
                       <Text style={styles.detailItem}>Time: {selectedItem.time}</Text>
-                    </View>
+                      <Text style={styles.detailItem}>Location: {selectedItem.location}</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.detailItem}>Instructor: {selectedItem.instructor}</Text>
+                      <Text style={styles.detailItem}>Schedule: {selectedItem.schedule?.days?.join(', ') || selectedItem.schedule?.date} at {selectedItem.schedule?.time}</Text>
+                      <Text style={styles.detailItem}>Location: {selectedItem.location}</Text>
+                    </>
+                  )}
+                </View>
 
-                    <View style={styles.detailSection}>
-                      <Text style={styles.sectionTitle}>Location</Text>
-                      <Text style={styles.detailItem}>{selectedItem.location}</Text>
-                    </View>
+                <View style={styles.detailSection}>
+                  <Text style={styles.sectionTitle}>Description</Text>
+                  <Text style={styles.detailItem}>{selectedItem.description}</Text>
+                </View>
 
-                    <View style={styles.detailSection}>
-                      <Text style={styles.sectionTitle}>Participants</Text>
-                      {selectedItem.participants.length > 0 ? (
-                        selectedItem.participants.map((participant, index) => (
-                          <Text key={index} style={styles.detailItem}>• {participant}</Text>
-                        ))
-                      ) : (
-                        <Text style={styles.detailItem}>No participants registered</Text>
-                      )}
-                    </View>
-
-                    <View style={styles.detailSection}>
-                      <Text style={styles.sectionTitle}>Description</Text>
-                      <Text style={styles.detailItem}>{selectedItem.description}</Text>
-                    </View>
-                  </>
-                ) : (
-                  <>
-                    <View style={styles.detailSection}>
-                      <Text style={styles.sectionTitle}>Instructor</Text>
-                      <Text style={styles.detailItem}>{selectedItem.instructor}</Text>
-                    </View>
-
-                    <View style={styles.detailSection}>
-                      <Text style={styles.sectionTitle}>Schedule</Text>
-                      <Text style={styles.detailItem}>Days: {selectedItem.schedule.days.join(', ')}</Text>
-                      <Text style={styles.detailItem}>Time: {selectedItem.schedule.time}</Text>
-                    </View>
-
-                    <View style={styles.detailSection}>
-                      <Text style={styles.sectionTitle}>Location</Text>
-                      <Text style={styles.detailItem}>{selectedItem.location}</Text>
-                    </View>
-
-                    <View style={styles.detailSection}>
-                      <Text style={styles.sectionTitle}>Description</Text>
-                      <Text style={styles.detailItem}>{selectedItem.description}</Text>
-                    </View>
-                  </>
+                {activeTab === 'activities' && (
+                  <View style={styles.detailSection}>
+                    <Text style={styles.sectionTitle}>Participants</Text>
+                    {selectedItem.participants && selectedItem.participants.length > 0 ? (
+                      selectedItem.participants.map((participantId, index) => (
+                        <Text key={index} style={styles.detailItem}>• Participant ID: {participantId}</Text>
+                      ))
+                    ) : (
+                      <Text style={styles.detailItem}>No participants registered</Text>
+                    )}
+                  </View>
                 )}
 
                 <View style={styles.buttonContainer}>
-                  <TouchableOpacity style={[styles.actionButton, styles.editButton]}>
+                  <TouchableOpacity 
+                    style={[styles.actionButton, styles.editButton]}
+                    onPress={() => handleEditItem(selectedItem)}
+                  >
                     <Ionicons name="create-outline" size={18} color="white" />
                     <Text style={styles.buttonText}>Edit</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.actionButton, styles.deleteButton]}>
+                  <TouchableOpacity 
+                    style={[styles.actionButton, styles.deleteButton]}
+                    onPress={() => handleDeleteItem(selectedItem)}
+                  >
                     <Ionicons name="trash-outline" size={18} color="white" />
                     <Text style={styles.buttonText}>Delete</Text>
                   </TouchableOpacity>
@@ -241,7 +599,7 @@ const ProgramScheduleScreen = () => {
       </View>
 
       <FlatList
-        data={filteredData}
+        data={items}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.listContainer}
@@ -256,6 +614,7 @@ const ProgramScheduleScreen = () => {
 
       <DetailModal />
       <AddOptionModal />
+      <AddFormModal />
     </SafeAreaView>
   );
 };
@@ -489,6 +848,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 12,
     color: '#333',
+  },
+  formGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 16,
+    marginBottom: 8,
+    fontWeight: '500',
+    color: '#333',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#f9f9f9',
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  submitButton: {
+    backgroundColor: '#4a6ea9',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 30,
+  },
+  submitButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 
