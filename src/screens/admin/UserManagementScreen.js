@@ -10,7 +10,8 @@ import {
   StatusBar,
   Modal,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -54,50 +55,109 @@ const UserManagementScreen = () => {
   const handleImportExcel = async () => {
     try {
       setIsLoading(true);
+      console.log('Starting file selection...');
       
-      // Pick document
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv'],
-        copyToCacheDirectory: true
-      });
+      // Set up a timeout to prevent the UI from being stuck in loading state
+      const timeoutId = setTimeout(() => {
+        console.log('Document picker timeout - resetting loading state');
+        setIsLoading(false);
+        Alert.alert(
+          'Operation Timed Out', 
+          'The file picker took too long to respond. Please try again.'
+        );
+      }, 10000); // 10 second timeout
+      
+      // Use a slightly different approach for the document picker
+      let result;
+      try {
+        if (Platform.OS === 'ios') {
+          // iOS specific approach
+          result = await DocumentPicker.getDocumentAsync({
+            type: ['public.comma-separated-values-text', 'public.spreadsheet'],
+            copyToCacheDirectory: true
+          });
+        } else {
+          // Android approach
+          result = await DocumentPicker.getDocumentAsync({
+            type: ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv'],
+            copyToCacheDirectory: true
+          });
+        }
+        
+        // Clear the timeout since the picker responded
+        clearTimeout(timeoutId);
+      } catch (pickerError) {
+        clearTimeout(timeoutId);
+        console.error('Document picker error:', pickerError);
+        Alert.alert('Error', `Could not open file picker: ${pickerError.message}`);
+        setIsLoading(false);
+        return;
+      }
 
-      if (result.canceled) {
+      console.log('Document picker result:', result);
+
+      if (!result || result.canceled) {
+        console.log('File selection was canceled or returned null');
         setIsLoading(false);
         return;
       }
 
       // Get the selected file
+      if (!result.assets || result.assets.length === 0) {
+        console.log('No file was selected');
+        Alert.alert('Error', 'No file was selected');
+        setIsLoading(false);
+        return;
+      }
+      
       const file = result.assets[0];
       console.log('Selected file:', file);
 
+      if (!file.uri) {
+        console.log('File URI is missing');
+        Alert.alert('Error', 'Could not access the selected file');
+        setIsLoading(false);
+        return;
+      }
+
       // Check if the file is a CSV or Excel file
-      const fileType = file.name.split('.').pop().toLowerCase();
+      const fileType = file.name ? file.name.split('.').pop().toLowerCase() : '';
+      console.log('File type:', fileType);
       
       if (fileType === 'csv') {
         // Read the CSV file
-        const fileContent = await FileSystem.readAsStringAsync(file.uri);
-        
-        // Parse CSV content
-        Papa.parse(fileContent, {
-          header: true,
-          complete: async (results) => {
-            console.log('Parsed CSV data:', results.data);
-            await processUserData(results.data);
-          },
-          error: (error) => {
-            console.error('CSV parsing error:', error);
-            Alert.alert('Error', 'Failed to parse CSV file');
-            setIsLoading(false);
-          }
-        });
+        console.log('Reading CSV file...');
+        try {
+          const fileContent = await FileSystem.readAsStringAsync(file.uri);
+          
+          // Parse CSV content
+          Papa.parse(fileContent, {
+            header: true,
+            complete: async (results) => {
+              console.log('Parsed CSV data:', results.data);
+              await processUserData(results.data);
+            },
+            error: (error) => {
+              console.error('CSV parsing error:', error);
+              Alert.alert('Error', 'Failed to parse CSV file');
+              setIsLoading(false);
+            }
+          });
+        } catch (readError) {
+          console.error('Error reading CSV file:', readError);
+          Alert.alert('Error', `Failed to read CSV file: ${readError.message}`);
+          setIsLoading(false);
+        }
       } else if (fileType === 'xlsx' || fileType === 'xls') {
         // Handle Excel files
         try {
+          console.log('Reading Excel file...');
           // Read the file as base64
           const base64 = await FileSystem.readAsStringAsync(file.uri, {
             encoding: FileSystem.EncodingType.Base64
           });
           
+          console.log('File read as base64, parsing Excel content...');
           // Parse Excel content
           const workbook = XLSX.read(base64, { type: 'base64' });
           
@@ -105,15 +165,50 @@ const UserManagementScreen = () => {
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
           
-          // Convert to JSON
-          const excelData = XLSX.utils.sheet_to_json(worksheet);
-          console.log('Parsed Excel data:', excelData);
+          console.log('Worksheet loaded, converting to data...');
+          
+          // Get cell values directly for headers (assuming row 1 has headers)
+          const headers = [];
+          const range = XLSX.utils.decode_range(worksheet['!ref']);
+          
+          // Log the range to understand the sheet structure
+          console.log('Sheet range:', range);
+          
+          // For Excel files with data starting at A2 (row 2)
+          // We'll process it directly rather than using sheet_to_json
+          const userData = [];
+          
+          // Start from row 2 (index 1) if there are headers in row 1
+          for (let row = 1; row <= range.e.r; row++) {
+            const firstName = worksheet[XLSX.utils.encode_cell({r: row, c: 0})]?.v || '';
+            const lastName = worksheet[XLSX.utils.encode_cell({r: row, c: 1})]?.v || '';
+            const email = worksheet[XLSX.utils.encode_cell({r: row, c: 2})]?.v || '';
+            const phone = worksheet[XLSX.utils.encode_cell({r: row, c: 3})]?.v || '';
+            const address = worksheet[XLSX.utils.encode_cell({r: row, c: 4})]?.v || '';
+            const notes = worksheet[XLSX.utils.encode_cell({r: row, c: 5})]?.v || '';
+            
+            // Skip empty rows
+            if (!firstName && !lastName && !email) continue;
+            
+            // Combine first and last name
+            const name = `${firstName} ${lastName}`.trim();
+            
+            userData.push({
+              name,
+              email,
+              phone,
+              address,
+              notes
+            });
+          }
+          
+          console.log('Processed Excel data:', userData);
           
           // Process the data
-          await processUserData(excelData);
+          await processUserData(userData);
         } catch (error) {
           console.error('Excel parsing error:', error);
-          Alert.alert('Error', 'Failed to parse Excel file. Make sure it has the correct format.');
+          Alert.alert('Error', `Failed to parse Excel file: ${error.message}`);
           setIsLoading(false);
         }
       } else {
@@ -122,36 +217,50 @@ const UserManagementScreen = () => {
       }
     } catch (error) {
       console.error('Error importing file:', error);
-      Alert.alert('Error', 'Failed to import file');
+      Alert.alert('Error', `Failed to import file: ${error.message}`);
       setIsLoading(false);
     }
   };
 
   const processUserData = async (userData) => {
     try {
+      console.log('Processing user data:', userData);
       if (!userData || userData.length === 0) {
         Alert.alert('Error', 'No data found in the file');
         setIsLoading(false);
         return;
       }
 
-      // Check if CSV has required fields
-      const firstRow = userData[0];
-      if (!firstRow.name || !firstRow.email) {
-        Alert.alert('Error', 'CSV file must contain "name" and "email" columns');
-        setIsLoading(false);
-        return;
+      // Check for valid data structure
+      let validUsers = [];
+      
+      for (const user of userData) {
+        // Check if we can get name and email (either direct or from first/last name)
+        const email = user.email;
+        let name = user.name;
+        
+        // If we don't have a name but have firstName/lastName
+        if (!name && (user.firstName || user.lastName)) {
+          name = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+        }
+        
+        if (name && email) {
+          validUsers.push({
+            ...user,
+            name,
+            email
+          });
+        }
       }
-
-      // Filter out rows with empty name or email
-      const validUsers = userData.filter(user => user.name && user.email);
       
       if (validUsers.length === 0) {
-        Alert.alert('Error', 'No valid user data found in the file');
+        Alert.alert('Error', 'No valid user data found in the file. Make sure your file has name and email columns.');
         setIsLoading(false);
         return;
       }
 
+      console.log('Valid users found:', validUsers.length);
+      
       // Import users to Firebase
       const importedCount = await importUsersToFirebase(validUsers);
       
@@ -162,7 +271,7 @@ const UserManagementScreen = () => {
       setIsLoading(false);
     } catch (error) {
       console.error('Error processing user data:', error);
-      Alert.alert('Error', 'Failed to process user data');
+      Alert.alert('Error', 'Failed to process user data: ' + error.message);
       setIsLoading(false);
     }
   };
@@ -246,17 +355,78 @@ const UserManagementScreen = () => {
               style={styles.modalOption}
               onPress={() => {
                 setAddModalVisible(false);
+                // Add a small delay before opening the picker to ensure the modal is closed
+                setTimeout(() => {
                 handleImportExcel();
+                }, 300);
               }}
             >
               <Ionicons name="document-outline" size={22} color="#333" />
               <Text style={styles.modalOptionText}>Import from Excel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.modalOption}
+              onPress={() => {
+                setAddModalVisible(false);
+                handleImportSampleData();
+              }}
+            >
+              <Ionicons name="people-outline" size={22} color="#333" />
+              <Text style={styles.modalOptionText}>Import Sample Data</Text>
             </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
     </Modal>
   );
+
+  // Function to import sample data without needing a file picker
+  const handleImportSampleData = async () => {
+    try {
+      setIsLoading(true);
+      console.log('Importing sample data...');
+
+      // Sample data simulating an Excel file with First Name, Last Name, Email format
+      const sampleData = [
+        {
+          name: 'John Smith',
+          email: 'john.smith@example.com',
+          phone: '555-1234',
+          address: '123 Main St',
+          notes: 'Sample student record'
+        },
+        {
+          name: 'Jane Doe',
+          email: 'jane.doe@example.com',
+          phone: '555-5678',
+          address: '456 Oak Ave',
+          notes: 'Another sample record'
+        },
+        {
+          name: 'Robert Johnson',
+          email: 'robert.j@example.com',
+          phone: '555-9101',
+          address: '789 Pine Blvd',
+          notes: 'Third sample record'
+        },
+        {
+          name: 'Khangai Enkhbat',
+          email: 'khangaienkhbat_2026@depauw.edu',
+          phone: '555-2233',
+          address: '101 Maple St',
+          notes: 'Fourth sample record'
+        }
+      ];
+
+      console.log('Processing sample data:', sampleData);
+      await processUserData(sampleData);
+    } catch (error) {
+      console.error('Error importing sample data:', error);
+      Alert.alert('Error', `Failed to import sample data: ${error.message}`);
+      setIsLoading(false);
+    }
+  };
 
   const renderUserItem = ({ item }) => (
     <View style={styles.userCard}>
@@ -294,24 +464,24 @@ const UserManagementScreen = () => {
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       ) : (
-        <FlatList
+      <FlatList
           data={users.filter(user => 
             user.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
             user.email?.toLowerCase().includes(searchQuery.toLowerCase())
           )}
           keyExtractor={(item) => item.id || Math.random().toString()}
           renderItem={renderUserItem}
-          ListEmptyComponent={() => (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="people-outline" size={64} color="#ccc" />
-              <Text style={styles.emptyTitle}>No users found</Text>
-              <Text style={styles.emptyText}>
-                Users you add or import will appear here.
-              </Text>
-            </View>
-          )}
-          contentContainerStyle={styles.listContainer}
-        />
+        ListEmptyComponent={() => (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="people-outline" size={64} color="#ccc" />
+            <Text style={styles.emptyTitle}>No users found</Text>
+            <Text style={styles.emptyText}>
+              Users you add or import will appear here.
+            </Text>
+          </View>
+        )}
+        contentContainerStyle={styles.listContainer}
+      />
       )}
 
       <TouchableOpacity 

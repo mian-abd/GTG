@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -7,11 +7,14 @@ import {
   ScrollView, 
   FlatList,
   SafeAreaView,
-  StatusBar
+  StatusBar,
+  ActivityIndicator,
+  Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { getDocuments } from '../../utils/firebaseConfig';
 
 // Demo data
 const ACTIVITIES = [
@@ -26,6 +29,30 @@ const DashboardScreen = () => {
   const [activeVisitorsCount, setActiveVisitorsCount] = useState('...');
   const [mentorsCount, setMentorsCount] = useState('...');
   const [activitiesCount, setActivitiesCount] = useState(42);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+
+  const fetchStudents = async () => {
+    try {
+      setLoading(true);
+      // Fetch students from Firestore
+      const studentsData = await getDocuments('students');
+      setStudents(studentsData);
+      
+      // Update counts
+      setActiveVisitorsCount(studentsData.length);
+      setMentorsCount('12'); // This could be dynamic too
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      setLoading(false);
+    }
+  };
 
   const handleMenuToggle = () => {
     // Toggle the sidebar menu
@@ -53,8 +80,46 @@ const DashboardScreen = () => {
     </View>
   );
 
+  const renderStudent = ({ item }) => (
+    <TouchableOpacity 
+      style={styles.studentCard}
+      onPress={() => {
+        // Navigate to student details or some action
+        navigation.navigate('UsersTab');
+      }}
+    >
+      <View style={styles.studentAvatarContainer}>
+        <View style={styles.studentAvatar}>
+          <Text style={styles.studentInitials}>
+            {item.name ? item.name.charAt(0).toUpperCase() : '?'}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.studentInfo}>
+        <Text style={styles.studentName}>{item.name || 'Unknown'}</Text>
+        <Text style={styles.studentEmail}>{item.email || 'No email'}</Text>
+      </View>
+      <View style={styles.studentStatus}>
+        <View style={[styles.statusIndicator, { backgroundColor: '#4CAF50' }]} />
+        <Text style={styles.statusText}>Active</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
   const handleManageVisitors = () => {
-    navigation.navigate('VisitorsTab');
+    navigation.navigate('UsersTab');
+  };
+
+  const handleViewAllUsers = () => {
+    navigation.navigate('UsersTab');
+  };
+
+  const handleViewAllMentors = () => {
+    navigation.navigate('MentorsTab');
+  };
+
+  const handleViewAllActivities = () => {
+    navigation.navigate('ProgramTab');
   };
 
   return (
@@ -86,7 +151,10 @@ const DashboardScreen = () => {
                 <Ionicons name="people" size={24} color="#F9A826" />
               </View>
               <Text style={styles.statValue}>{activeVisitorsCount}</Text>
-              <TouchableOpacity style={styles.viewAllButton}>
+              <TouchableOpacity 
+                style={styles.viewAllButton}
+                onPress={handleViewAllUsers}
+              >
                 <Text style={styles.viewAllText}>View All</Text>
               </TouchableOpacity>
             </View>
@@ -97,7 +165,10 @@ const DashboardScreen = () => {
                 <Ionicons name="school" size={24} color="#F9A826" />
               </View>
               <Text style={styles.statValue}>{mentorsCount}</Text>
-              <TouchableOpacity style={styles.viewAllButton}>
+              <TouchableOpacity 
+                style={styles.viewAllButton}
+                onPress={handleViewAllMentors}
+              >
                 <Text style={styles.viewAllText}>View All</Text>
               </TouchableOpacity>
             </View>
@@ -108,7 +179,10 @@ const DashboardScreen = () => {
                 <Ionicons name="calendar" size={24} color="#F9A826" />
               </View>
               <Text style={styles.statValue}>{activitiesCount}</Text>
-              <TouchableOpacity style={styles.viewAllButton}>
+              <TouchableOpacity 
+                style={styles.viewAllButton}
+                onPress={handleViewAllActivities}
+              >
                 <Text style={styles.viewAllText}>View All</Text>
               </TouchableOpacity>
             </View>
@@ -117,7 +191,10 @@ const DashboardScreen = () => {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Upcoming Activities</Text>
-              <TouchableOpacity style={styles.viewButton}>
+              <TouchableOpacity 
+                style={styles.viewButton}
+                onPress={handleViewAllActivities}
+              >
                 <Text style={styles.viewButtonText}>View All</Text>
               </TouchableOpacity>
             </View>
@@ -161,11 +238,37 @@ const DashboardScreen = () => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.noVisitorsContainer}>
-              <Text style={styles.noVisitorsText}>
-                No visitors found. Add visitors through the Manage Visitors page.
-              </Text>
-            </View>
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#F9A826" />
+                <Text style={styles.loadingText}>Loading visitors...</Text>
+              </View>
+            ) : students.length > 0 ? (
+              <View style={styles.studentsContainer}>
+                <FlatList
+                  data={students.slice(0, 5)} // Only show first 5 students
+                  renderItem={renderStudent}
+                  keyExtractor={(item) => item.id}
+                  scrollEnabled={false}
+                  ListFooterComponent={students.length > 5 && (
+                    <TouchableOpacity 
+                      style={styles.viewMoreButton}
+                      onPress={handleViewAllUsers}
+                    >
+                      <Text style={styles.viewMoreText}>
+                        View {students.length - 5} more visitors
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+            ) : (
+              <View style={styles.noVisitorsContainer}>
+                <Text style={styles.noVisitorsText}>
+                  No visitors found. Add visitors through the Manage Visitors page.
+                </Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.footer}>
@@ -342,6 +445,82 @@ const styles = StyleSheet.create({
   noVisitorsText: {
     color: '#CCC',
     textAlign: 'center',
+  },
+  loadingContainer: {
+    backgroundColor: '#333',
+    marginHorizontal: 16,
+    padding: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#CCC',
+    marginTop: 8,
+  },
+  studentsContainer: {
+    marginHorizontal: 16,
+    backgroundColor: '#333',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  studentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#444',
+  },
+  studentAvatarContainer: {
+    marginRight: 12,
+  },
+  studentAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F9A826',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  studentInitials: {
+    color: '#333',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  studentInfo: {
+    flex: 1,
+  },
+  studentName: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  studentEmail: {
+    color: '#AAA',
+    fontSize: 12,
+  },
+  studentStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  statusText: {
+    color: '#CCC',
+    fontSize: 12,
+  },
+  viewMoreButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#444',
+  },
+  viewMoreText: {
+    color: '#F9A826',
+    fontSize: 14,
   },
   footer: {
     alignItems: 'center',
