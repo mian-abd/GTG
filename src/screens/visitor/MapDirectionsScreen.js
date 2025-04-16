@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,388 +8,603 @@ import {
   Image,
   ScrollView,
   Dimensions,
-  Linking
+  Linking,
+  Alert,
+  Platform,
+  StatusBar,
+  Animated,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../context/ThemeContext';
 
-// Import demo data
+// Import location data and assets
 import { LOCATIONS } from '../../utils/demoData';
-
-// Mock map image (in a real app, you would use a mapping library like react-native-maps)
-const mapPlaceholder = 'https://i.imgur.com/WmQdC5q.png';
+import { IMAGES } from '../../assets';
 
 const MapDirectionsScreen = ({ navigation, route }) => {
-  // Default to first location if none specified
-  const [selectedLocation, setSelectedLocation] = useState(
-    route.params?.locationId 
-      ? LOCATIONS.find(loc => loc.id === route.params.locationId) 
-      : LOCATIONS[0]
-  );
+  const { theme } = useTheme();
   
-  const [showDirections, setShowDirections] = useState(false);
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
   
-  // Steps for directions (mock data - in a real app, this would come from a routing API)
-  const directionSteps = [
-    { 
-      id: '1', 
-      instruction: 'Exit the student center and head east', 
-      distance: '150m',
-      time: '2 min'
-    },
-    { 
-      id: '2', 
-      instruction: 'Turn right at the library', 
-      distance: '200m',
-      time: '3 min'
-    },
-    { 
-      id: '3', 
-      instruction: 'Continue straight past the science building', 
-      distance: '100m',
-      time: '1 min'
-    },
-    { 
-      id: '4', 
-      instruction: `Arrive at ${selectedLocation?.name}`, 
-      distance: '0m',
-      time: '0 min'
-    },
-  ];
+  // State for loading indicators
+  const [isLoadingDirections, setIsLoadingDirections] = useState(false);
+  const [isLoadingTour, setIsLoadingTour] = useState(false);
+  
+  // Find the location based on the ID passed or default to first location
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  
+  useEffect(() => {
+    // Default to first location if none specified
+    const locationId = route.params?.locationId;
+    
+    try {
+      let location;
+      if (locationId) {
+        location = LOCATIONS.find(loc => loc.id === locationId);
+        if (!location) {
+          console.warn('Location not found with ID:', locationId);
+          location = LOCATIONS[0];
+          Alert.alert('Location Not Found', 'The specified location could not be found. Showing default location instead.');
+        }
+      } else {
+        location = LOCATIONS[0];
+      }
+      
+      console.log('Selected location:', location.name, location.latitude, location.longitude);
+      setSelectedLocation(location);
+    } catch (error) {
+      console.error('Error setting location:', error);
+      setSelectedLocation(LOCATIONS[0]);
+    }
+    
+    // Start animations when component mounts
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true
+      })
+    ]).start();
+  }, [route.params?.locationId, fadeAnim, slideAnim]);
   
   const openInMaps = () => {
-    // In a real app, this would open the device's maps app with the coordinates
-    if (selectedLocation?.coordinates) {
-      const { latitude, longitude } = selectedLocation.coordinates;
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
-      Linking.openURL(url);
+    if (!selectedLocation) {
+      Alert.alert('Error', 'Location not available');
+      return;
     }
-  };
-  
-  const renderLocationDetails = () => (
-    <View style={styles.detailsContainer}>
-      <Text style={styles.locationName}>{selectedLocation?.name}</Text>
-      <Text style={styles.locationType}>{selectedLocation?.type}</Text>
-      <Text style={styles.locationDescription}>{selectedLocation?.description}</Text>
-      
-      {selectedLocation?.coordinates && (
-        <View style={styles.coordinatesContainer}>
-          <Ionicons name="location-outline" size={16} color="#666" />
-          <Text style={styles.coordinatesText}>
-            {selectedLocation.coordinates.latitude.toFixed(6)}, {selectedLocation.coordinates.longitude.toFixed(6)}
-          </Text>
-        </View>
-      )}
-      
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={[styles.button, styles.directionsButton]} 
-          onPress={() => setShowDirections(!showDirections)}
-        >
-          <Ionicons name="map-outline" size={18} color="#fff" />
-          <Text style={styles.buttonText}>
-            {showDirections ? 'Hide Directions' : 'Show Directions'}
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.button, styles.openMapsButton]} 
-          onPress={openInMaps}
-        >
-          <Ionicons name="navigate-outline" size={18} color="#fff" />
-          <Text style={styles.buttonText}>Open in Maps</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-  
-  const renderDirections = () => {
-    if (!showDirections) return null;
     
-    return (
-      <View style={styles.directionsContainer}>
-        <Text style={styles.directionsTitle}>Directions</Text>
-        
-        {directionSteps.map((step, index) => (
-          <View key={step.id} style={styles.directionStep}>
-            <View style={styles.stepNumberContainer}>
-              <Text style={styles.stepNumber}>{index + 1}</Text>
-            </View>
-            <View style={styles.stepDetails}>
-              <Text style={styles.stepInstruction}>{step.instruction}</Text>
-              <View style={styles.stepMetrics}>
-                <Text style={styles.stepDistance}>{step.distance}</Text>
-                <Text style={styles.stepTime}>{step.time}</Text>
-              </View>
-            </View>
-          </View>
-        ))}
-        
-        <View style={styles.totalContainer}>
-          <Text style={styles.totalText}>Total: 450m (6 min)</Text>
-        </View>
-      </View>
-    );
+    // Check if coordinates exist and are valid numbers
+    if (!selectedLocation.latitude || !selectedLocation.longitude) {
+      Alert.alert('Error', 'Location coordinates not available');
+      return;
+    }
+    
+    setIsLoadingDirections(true);
+    
+    const { latitude, longitude } = selectedLocation;
+    const label = encodeURIComponent(selectedLocation.name);
+    
+    // Different URL schemes for iOS and Android
+    let url;
+    if (Platform.OS === 'ios') {
+      url = `maps:0,0?q=${label}&ll=${latitude},${longitude}`;
+    } else {
+      url = `geo:0,0?q=${latitude},${longitude}(${label})`;
+    }
+    
+    Linking.canOpenURL(url)
+      .then(supported => {
+        setIsLoadingDirections(false);
+        if (supported) {
+          return Linking.openURL(url);
+        } else {
+          // Fallback to browser-based Google Maps
+          const fallbackUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+          Alert.alert(
+            'Maps App Not Found',
+            'Would you like to open the location in Google Maps instead?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { 
+                text: 'Open Google Maps', 
+                onPress: () => Linking.openURL(fallbackUrl) 
+              }
+            ]
+          );
+        }
+      })
+      .catch(err => {
+        setIsLoadingDirections(false);
+        console.error('Error opening maps:', err);
+        Alert.alert('Error', 'Could not open maps application');
+      });
   };
   
+  const openVirtualTour = () => {
+    if (!selectedLocation) {
+      Alert.alert('Error', 'Location not available');
+      return;
+    }
+    
+    // Get the appropriate virtual tour URL based on location name
+    let tourUrl = null;
+    
+    // Match location name to the direct links provided
+    switch(selectedLocation.name) {
+      case 'Hoover Hall':
+        tourUrl = 'https://my.matterport.com/show/?m=gvohj2Yu5Qc';
+        break;
+      case 'Green Center for the Performing Arts':
+      case 'The Judson and Joyce Green Center for the Performing Arts':
+        tourUrl = 'https://app.lapentor.com/sphere/gcpa-1690311151';
+        break;
+      case 'Julian Science and Mathematics Center':
+      case 'The Percy L. Julian Science and Mathematics Center':
+        tourUrl = 'https://my.matterport.com/show/?m=8csa1jFAgAz';
+        break;
+      case 'Peeler Art Center':
+      case 'The Richard E. Peeler Art Center':
+        tourUrl = 'https://app.lapentor.com/sphere/peeler-1690485610';
+        break;
+      case 'Ullem Sustainability Center and Campus Farm':
+      case 'Campus Farm':
+        tourUrl = 'https://app.lapentor.com/sphere/campus-farm-1687199908?scene=6490a2726886be1be502f6f7';
+        break;
+      case 'Lilly Center':
+      case 'The Lilly Center':
+        tourUrl = 'https://app.lapentor.com/sphere/lilly-center';
+        break;
+      case 'The Women\'s Center':
+      case 'Women\'s Center':
+        tourUrl = 'https://my.matterport.com/show/?m=prk65qArRCu';
+        break;
+      case 'DePauw Athletics Facilities':
+      case 'Athletics Facilities':
+        tourUrl = 'https://app.lapentor.com/sphere/athletic-fields?scene=649458ad5f1ca3bc01096197';
+        break;
+      case 'Center for Diversity and Inclusion':
+      case 'The Justin and Darrianne Christian Center for Diversity and Inclusion':
+        tourUrl = 'https://my.matterport.com/show/?m=4aWTHBxJqkQ';
+        break;
+      case 'McDermond Center':
+      case 'The Robert C. McDermond Center for Management & Entrepreneurship':
+        tourUrl = 'https://my.matterport.com/show/?m=8d2BLUcQdqT';
+        break;
+      case 'Pulliam Center for Contemporary Media':
+      case 'The Eugene S. Pulliam Center for Contemporary Media':
+        tourUrl = 'https://my.matterport.com/show/?m=8yBjcDXCkCY';
+        break;
+      case 'Bishop Roberts Hall':
+        tourUrl = 'https://my.matterport.com/show/?m=rSnQ47VCcNR';
+        break;
+      case 'Eli\'s Books':
+        tourUrl = 'https://app.lapentor.com/sphere/downtown-greencastle';
+        break;
+      case 'The Center for Spiritual Life':
+      case 'Center for Spiritual Life':
+        tourUrl = 'https://my.matterport.com/show/?m=NL8gQzSmiXG';
+        break;
+      case 'DePauw Nature Park':
+      case 'Nature Park':
+        tourUrl = 'https://app.lapentor.com/sphere/nature-park';
+        break;
+      case 'F.W. Olin Biological Sciences Building':
+      case 'Olin Biological Sciences Building':
+        tourUrl = 'https://www.depauw.edu/virtual-tour/location/19/';
+        break;
+      case 'Memorial Student Union':
+      case 'The Memorial Student Union Building':
+        // No direct link provided, use default if available
+        tourUrl = selectedLocation.virtualTourUrl || null;
+        break;
+      case 'Prindle Institute for Ethics':
+      case 'The Janet Prindle Institute for Ethics':
+        tourUrl = 'https://app.lapentor.com/sphere/prindle';
+        break;
+      case 'Roy O. West Library':
+        tourUrl = 'https://www.depauw.edu/virtual-tour/location/18/';
+        break;
+      default:
+        // Use the default virtualTourUrl from the location data if available
+        tourUrl = selectedLocation.virtualTourUrl || null;
+    }
+    
+    if (!tourUrl) {
+      Alert.alert('Virtual Tour Not Available', 'This location does not have a virtual tour available at this time.');
+      return;
+    }
+    
+    console.log('Opening virtual tour:', selectedLocation.name, tourUrl);
+    setIsLoadingTour(true);
+    
+    Linking.openURL(tourUrl)
+      .then(() => {
+        setIsLoadingTour(false);
+      })
+      .catch(err => {
+        setIsLoadingTour(false);
+        console.error('Error opening virtual tour:', err);
+        Alert.alert('Error', 'Could not open virtual tour');
+      });
+  };
+
+  // Add a helper function to check if a virtual tour is available
+  const hasVirtualTour = (location) => {
+    if (!location) return false;
+    
+    // Check if the location is in our list of locations with direct tour links
+    const locationsWithTours = [
+      'Hoover Hall',
+      'Green Center for the Performing Arts',
+      'Julian Science and Mathematics Center',
+      'Peeler Art Center',
+      'Lilly Center',
+      'Roy O. West Library',
+      'DePauw Nature Park',
+      'Prindle Institute for Ethics',
+      'Memorial Student Union',
+      'Center for Diversity and Inclusion',
+      'Bishop Roberts Hall'
+    ];
+    
+    // Check by name or if virtualTourUrl exists
+    return locationsWithTours.includes(location.name) || 
+           Boolean(location.virtualTourUrl);
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      <StatusBar barStyle={theme.mode === 'dark' ? 'light-content' : 'dark-content'} />
+      <View style={[styles.header, { backgroundColor: theme.colors.background.primary, borderBottomColor: theme.colors.border }]}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Directions</Text>
-        <View style={{ width: 24 }} />
+        <Text style={[styles.headerTitle, { color: theme.colors.text.primary }]}>Location Details</Text>
+        <Image
+          source={IMAGES.depauw_logo}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
       </View>
       
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.mapContainer}>
-          <Image source={{ uri: mapPlaceholder }} style={styles.mapImage} />
-          
-          <View style={styles.mapOverlay}>
-            <TouchableOpacity style={styles.currentLocationButton}>
-              <Ionicons name="locate" size={24} color="#4e73df" />
-            </TouchableOpacity>
+      <ScrollView style={styles.scrollView}>
+        {selectedLocation ? (
+          <Animated.View style={{opacity: fadeAnim, transform: [{translateY: slideAnim}]}}>
+            {selectedLocation.imageUrl ? (
+              <Image 
+                source={{ uri: selectedLocation.imageUrl }} 
+                style={styles.locationImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={[styles.imagePlaceholder, { backgroundColor: theme.colors.background.tertiary }]}>
+                <Ionicons name="image-outline" size={64} color={theme.colors.text.tertiary} />
+              </View>
+            )}
             
-            <TouchableOpacity style={styles.zoomInButton}>
-              <Ionicons name="add" size={24} color="#333" />
-            </TouchableOpacity>
+            <View style={[styles.locationInfoContainer, { 
+              backgroundColor: theme.colors.card,
+              shadowColor: theme.mode === 'dark' ? '#000' : '#555'
+            }]}>
+              <Text style={[styles.locationName, { color: theme.colors.text.primary }]}>
+                {selectedLocation.name}
+              </Text>
+              
+              <View style={[styles.typeContainer, { backgroundColor: theme.colors.primary + '20' }]}>
+                <Text style={[styles.typeText, { color: theme.colors.primary }]}>
+                  {selectedLocation.type}
+                </Text>
+              </View>
+              
+              <Text style={[styles.locationDescription, { color: theme.colors.text.secondary }]}>
+                {selectedLocation.description}
+              </Text>
+              
+              {selectedLocation.latitude && selectedLocation.longitude && (
+                <View style={[styles.coordinatesContainer, { borderTopColor: theme.colors.border }]}>
+                  <Text style={[styles.coordinatesLabel, { color: theme.colors.text.tertiary }]}>
+                    Location Coordinates
+                  </Text>
+                  <View style={styles.coordinatesRow}>
+                    <Text style={[styles.coordinates, { color: theme.colors.text.secondary }]}>
+                      {selectedLocation.latitude.toFixed(6)}, {selectedLocation.longitude.toFixed(6)}
+                    </Text>
+                    <TouchableOpacity 
+                      style={styles.copyButton}
+                      onPress={() => {
+                        const coordText = `${selectedLocation.latitude.toFixed(6)}, ${selectedLocation.longitude.toFixed(6)}`;
+                        // In a real app, you would use Clipboard.setString(coordText)
+                        Alert.alert('Copied', 'Coordinates copied to clipboard');
+                      }}
+                    >
+                      <Ionicons name="copy-outline" size={18} color={theme.colors.text.tertiary} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </View>
             
-            <TouchableOpacity style={styles.zoomOutButton}>
-              <Ionicons name="remove" size={24} color="#333" />
-            </TouchableOpacity>
+            <View style={styles.buttonsContainer}>
+              <TouchableOpacity 
+                style={[
+                  styles.directionsButton, 
+                  { backgroundColor: theme.colors.primary },
+                  isLoadingDirections && { opacity: 0.7 }
+                ]}
+                onPress={openInMaps}
+                disabled={isLoadingDirections || !selectedLocation.latitude || !selectedLocation.longitude}
+                activeOpacity={0.7}
+              >
+                {isLoadingDirections ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="navigate" size={22} color="#fff" />
+                    <Text style={styles.directionsButtonText}>Get Directions</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              
+              {hasVirtualTour(selectedLocation) && (
+                <TouchableOpacity 
+                  style={[
+                    styles.virtualTourButton, 
+                    { backgroundColor: theme.colors.tertiary },
+                    isLoadingTour && { opacity: 0.7 }
+                  ]}
+                  onPress={openVirtualTour}
+                  disabled={isLoadingTour}
+                  activeOpacity={0.7}
+                >
+                  {isLoadingTour ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="cube" size={22} color="#fff" />
+                      <Text style={styles.virtualTourText}>Virtual Tour</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+            
+            <View style={[styles.infoSection, { borderTopColor: theme.colors.border }]}>
+              <Text style={[styles.infoSectionTitle, { color: theme.colors.text.primary }]}>
+                Location Information
+              </Text>
+              
+              <View style={styles.infoRow}>
+                <Ionicons name="location" size={20} color={theme.colors.primary} />
+                <Text style={[styles.infoText, { color: theme.colors.text.secondary }]}>
+                  Type: {selectedLocation.type}
+                </Text>
+              </View>
+              
+              {selectedLocation.latitude && selectedLocation.longitude && (
+                <TouchableOpacity 
+                  style={styles.infoRow} 
+                  onPress={openInMaps}
+                  disabled={isLoadingDirections}
+                >
+                  <Ionicons name="map" size={20} color={theme.colors.primary} />
+                  <Text style={[styles.infoText, { color: theme.colors.text.secondary }]}>
+                    Open in Maps App
+                  </Text>
+                  {isLoadingDirections ? (
+                    <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
+                  ) : (
+                    <Ionicons name="chevron-forward" size={20} color={theme.colors.text.tertiary} style={styles.chevron} />
+                  )}
+                </TouchableOpacity>
+              )}
+              
+              {hasVirtualTour(selectedLocation) && (
+                <TouchableOpacity 
+                  style={styles.infoRow} 
+                  onPress={openVirtualTour}
+                  disabled={isLoadingTour}
+                >
+                  <Ionicons name="cube" size={20} color={theme.colors.primary} />
+                  <Text style={[styles.infoText, { color: theme.colors.text.secondary }]}>
+                    View Virtual Tour
+                  </Text>
+                  {isLoadingTour ? (
+                    <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
+                  ) : (
+                    <Ionicons name="chevron-forward" size={20} color={theme.colors.text.tertiary} style={styles.chevron} />
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+          </Animated.View>
+        ) : (
+          <View style={styles.loadingContainer}>
+            <Text style={[styles.loadingText, { color: theme.colors.text.secondary }]}>
+              Loading location details...
+            </Text>
           </View>
-        </View>
-        
-        {renderLocationDetails()}
-        {renderDirections()}
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-const { width } = Dimensions.get('window');
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e1e1',
   },
   backButton: {
     padding: 4,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 20,
+    fontWeight: 'bold',
+    flex: 1,
+    textAlign: 'center',
   },
-  mapContainer: {
+  logoImage: {
+    width: 36,
+    height: 36,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  locationImage: {
+    width: Dimensions.get('window').width,
+    height: 250,
+  },
+  imagePlaceholder: {
     width: '100%',
     height: 250,
-    position: 'relative',
-  },
-  mapImage: {
-    width: '100%',
-    height: '100%',
-  },
-  mapOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  currentLocationButton: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    width: 40,
-    height: 40,
-    alignItems: 'center',
     justifyContent: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
-  zoomInButton: {
-    position: 'absolute',
-    bottom: 60,
-    right: 16,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    width: 36,
-    height: 36,
     alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
   },
-  zoomOutButton: {
-    position: 'absolute',
-    bottom: 16,
-    right: 16,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
+  locationInfoContainer: {
+    padding: 20,
+    margin: 16,
+    borderRadius: 12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
-  detailsContainer: {
-    padding: 16,
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: -30,
-    borderRadius: 8,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
   },
   locationName: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
-  },
-  locationType: {
-    fontSize: 14,
-    color: '#f9a826',
-    fontWeight: '500',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  locationDescription: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 22,
     marginBottom: 12,
   },
-  coordinatesContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  typeContainer: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
     marginBottom: 16,
   },
-  coordinatesText: {
+  typeText: {
     fontSize: 14,
-    color: '#666',
-    marginLeft: 6,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-    flex: 1,
-    marginHorizontal: 4,
-  },
-  directionsButton: {
-    backgroundColor: '#4e73df',
-  },
-  openMapsButton: {
-    backgroundColor: '#f9a826',
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '500',
-    marginLeft: 6,
-  },
-  directionsContainer: {
-    backgroundColor: '#fff',
-    margin: 16,
-    marginTop: 12,
-    borderRadius: 8,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  directionsTitle: {
-    fontSize: 18,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
   },
-  directionStep: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  stepNumberContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#4e73df',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  stepNumber: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  stepDetails: {
-    flex: 1,
-  },
-  stepInstruction: {
+  locationDescription: {
     fontSize: 16,
-    color: '#333',
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  coordinatesContainer: {
+    paddingTop: 16,
+    marginTop: 8,
+    borderTopWidth: 1,
+  },
+  coordinatesLabel: {
+    fontSize: 14,
+    fontWeight: '500',
     marginBottom: 4,
   },
-  stepMetrics: {
+  coordinatesRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  stepDistance: {
-    fontSize: 12,
-    color: '#666',
+  coordinates: {
+    fontSize: 14,
+    flex: 1,
+  },
+  copyButton: {
+    padding: 6,
+  },
+  buttonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+    marginBottom: 16,
+  },
+  directionsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flex: 1,
     marginRight: 8,
+    elevation: 2,
   },
-  stepTime: {
-    fontSize: 12,
-    color: '#666',
-  },
-  totalContainer: {
-    borderTopWidth: 1,
-    borderTopColor: '#e1e1e1',
-    paddingTop: 12,
-    marginTop: 8,
-  },
-  totalText: {
+  directionsButtonText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
-    textAlign: 'right',
+    marginLeft: 8,
   },
+  virtualTourButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flex: 1,
+    marginLeft: 8,
+    elevation: 2,
+  },
+  virtualTourText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  infoSection: {
+    margin: 16,
+    marginTop: 0,
+    paddingTop: 16,
+    borderTopWidth: 1,
+  },
+  infoSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#ddd',
+  },
+  infoText: {
+    fontSize: 16,
+    marginLeft: 12,
+    flex: 1,
+  },
+  chevron: {
+    marginLeft: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 30,
+    marginTop: 100,
+  },
+  loadingText: {
+    fontSize: 16,
+  }
 });
 
 export default MapDirectionsScreen; 

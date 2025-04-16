@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,142 +8,265 @@ import {
   TouchableOpacity,
   TextInput,
   SafeAreaView,
+  Linking,
+  Alert,
+  ActivityIndicator,
+  Platform,
+  Dimensions,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../context/ThemeContext';
 
-// Import demo data and helpers
+// Import demo data and colors
 import { LOCATIONS } from '../../utils/demoData';
-import { truncateText } from '../../utils/helpers';
+import { IMAGES } from '../../assets';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const CARD_WIDTH = SCREEN_WIDTH * 0.47;
+
+// Corrected categories to match DePauw's categorization
+const categories = [
+  'All',
+  'Learning Spaces',
+  'Living Spaces',
+  'Community Spaces',
+  'Athletics & Wellness',
+  'Arts, Performance & Production',
+  'Surrounding Areas'
+];
 
 const ExploreScreen = ({ navigation }) => {
+  const { theme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [filteredLocations, setFilteredLocations] = useState(LOCATIONS);
+  const [imageLoading, setImageLoading] = useState({});
   
-  // Get unique location types for category filtering
-  const locationTypes = ['all', ...Array.from(new Set(LOCATIONS.map(loc => loc.type)))];
-  
-  // Filter locations based on search query and active category
-  const filteredLocations = LOCATIONS.filter(location => {
-    const matchesSearch = searchQuery === '' || 
-      location.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      location.description.toLowerCase().includes(searchQuery.toLowerCase());
-      
-    const matchesCategory = activeCategory === 'all' || location.type === activeCategory;
+  // Filter locations when search query or category changes
+  useEffect(() => {
+    let filtered = LOCATIONS;
     
-    return matchesSearch && matchesCategory;
-  });
+    // Filter by search query
+    if (searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(location => 
+        location.name.toLowerCase().includes(query) || 
+        location.description.toLowerCase().includes(query)
+      );
+    }
+    
+    // Filter by category
+    if (selectedCategory !== 'All') {
+      filtered = filtered.filter(location => 
+        location.type === selectedCategory
+      );
+    }
+    
+    setFilteredLocations(filtered);
+  }, [searchQuery, selectedCategory]);
   
   const handleViewLocation = (location) => {
-    // Will navigate to location details screen in future
-    console.log('View location details:', location.id);
+    console.log('Opening location details:', location.id, location.name, {
+      latitude: location.latitude,
+      longitude: location.longitude
+    });
+    navigation.navigate('MapDirections', { locationId: location.id });
   };
   
-  const renderLocation = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.locationCard}
-      onPress={() => handleViewLocation(item)}
+  const openVirtualTour = (location) => {
+    if (!location.virtualTourUrl) {
+      Alert.alert(
+        'Virtual Tour Unavailable',
+        'This location does not have a virtual tour available at this time.'
+      );
+      return;
+    }
+    
+    Linking.canOpenURL(location.virtualTourUrl)
+      .then(supported => {
+        if (supported) {
+          return Linking.openURL(location.virtualTourUrl);
+        } else {
+          Alert.alert(
+            'Virtual Tour Unavailable',
+            'Cannot open the virtual tour at this time.'
+          );
+        }
+      })
+      .catch(err => {
+        console.error('Error opening virtual tour:', err);
+        Alert.alert('Error', 'Failed to open virtual tour');
+      });
+  };
+  
+  const renderCategory = ({ item }) => (
+    <TouchableOpacity
+      style={[
+        styles.categoryTab,
+        selectedCategory === item && [
+          styles.selectedCategoryTab,
+          { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
+        ],
+        { backgroundColor: theme.colors.background.secondary, borderColor: theme.colors.border }
+      ]}
+      onPress={() => setSelectedCategory(item)}
     >
-      {item.imageUrl ? (
-        <Image source={{ uri: item.imageUrl }} style={styles.locationImage} />
-      ) : (
-        <View style={styles.placeholderImage}>
-          <Ionicons name="location-outline" size={40} color="#fff" />
-        </View>
-      )}
-      
-      <View style={styles.locationMeta}>
-        <View style={styles.categoryBadge}>
-          <Text style={styles.categoryText}>{item.type}</Text>
-        </View>
-      </View>
-      
-      <View style={styles.locationInfo}>
-        <Text style={styles.locationName}>{item.name}</Text>
-        <Text style={styles.locationDescription}>
-          {truncateText(item.description, 120)}
-        </Text>
-        
-        {item.coordinates && (
-          <View style={styles.locationCoordinates}>
-            <Ionicons name="navigate-outline" size={16} color="#666" />
-            <Text style={styles.coordinatesText}>
-              {item.coordinates.latitude.toFixed(6)}, {item.coordinates.longitude.toFixed(6)}
-            </Text>
-          </View>
-        )}
-      </View>
-      
-      <TouchableOpacity style={styles.directionsButton}>
-        <Ionicons name="map-outline" size={18} color="#fff" />
-        <Text style={styles.directionsText}>Directions</Text>
-      </TouchableOpacity>
+      <Text
+        style={[
+          styles.categoryText,
+          selectedCategory === item && [
+            styles.selectedCategoryText,
+            { color: '#000' }
+          ],
+          { color: theme.colors.text.secondary }
+        ]}
+      >
+        {item}
+      </Text>
     </TouchableOpacity>
   );
   
-  const renderCategoryTab = (category) => {
-    const isActive = category === activeCategory;
+  const renderLocation = ({ item }) => {
+    const isLoading = imageLoading[item.id];
+
     return (
       <TouchableOpacity
-        key={category}
-        style={[styles.categoryTab, isActive && styles.activeCategoryTab]}
-        onPress={() => setActiveCategory(category)}
+        style={[styles.locationCard, { 
+          backgroundColor: theme.colors.card, 
+          shadowColor: theme.mode === 'dark' ? '#000' : '#888'
+        }]}
+        onPress={() => handleViewLocation(item)}
+        activeOpacity={0.7}
       >
-        <Text style={[styles.categoryTabText, isActive && styles.activeCategoryTabText]}>
-          {category.charAt(0).toUpperCase() + category.slice(1)}
-        </Text>
+        <View style={styles.locationImageContainer}>
+          {isLoading && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            </View>
+          )}
+          
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={styles.locationImage}
+            onLoadStart={() => setImageLoading(prev => ({ ...prev, [item.id]: true }))}
+            onLoadEnd={() => setImageLoading(prev => ({ ...prev, [item.id]: false }))}
+            resizeMode="cover"
+          />
+          
+          <View style={[styles.locationTypeTag, { backgroundColor: 'rgba(0, 0, 0, 0.7)' }]}>
+            <Text style={styles.locationTypeText}>{item.type}</Text>
+          </View>
+          
+          <View style={[styles.locationInfoOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.7)' }]}>
+            <Text style={styles.locationName} numberOfLines={2}>{item.name}</Text>
+            
+            <View style={styles.buttonRow}>
+              <TouchableOpacity 
+                style={[styles.directionsButton, { backgroundColor: '#fff' }]}
+                onPress={() => handleViewLocation(item)}
+              >
+                <Ionicons name="map" size={14} color="#000" style={{marginRight: 4}} />
+                <Text style={styles.buttonText}>Directions</Text>
+              </TouchableOpacity>
+
+              {item.virtualTourUrl ? (
+                <TouchableOpacity 
+                  style={[styles.tourButton, { backgroundColor: theme.colors.primary }]}
+                  onPress={() => openVirtualTour(item)}
+                >
+                  <Ionicons name="videocam" size={14} color="#000" style={{marginRight: 4}} />
+                  <Text style={styles.buttonText}>Tour</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </View>
+        </View>
       </TouchableOpacity>
     );
   };
   
-  const renderEmptyState = () => (
-    <View style={styles.emptyStateContainer}>
-      <Ionicons name="location-outline" size={64} color="#ccc" />
-      <Text style={styles.emptyStateTitle}>No locations found</Text>
-      <Text style={styles.emptyStateText}>
-        Try adjusting your search criteria
+  const EmptyListComponent = () => (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="search" size={64} color={theme.colors.primary} />
+      <Text style={[styles.emptyText, { color: theme.colors.text.secondary }]}>
+        No locations found. Try a different search term or category.
       </Text>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.screenTitle}>Explore Campus</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      <StatusBar barStyle={theme.mode === 'dark' ? 'light-content' : 'dark-content'} />
+      
+      <View style={[styles.header, { 
+        backgroundColor: theme.colors.background.primary, 
+        borderBottomColor: theme.colors.border 
+      }]}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
+          </TouchableOpacity>
+          
+          <View style={styles.headerTitleContainer}>
+            <Text style={[styles.headerTitle, { color: theme.colors.text.primary }]}>
+              Explore Campus
+            </Text>
+            <Text style={[styles.headerSubtitle, { color: theme.colors.text.tertiary }]}>
+              Find your way around DePauw
+            </Text>
+          </View>
+          
+          <Image
+            source={IMAGES.depauw_logo}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+        </View>
       </View>
       
-      <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={20} color="#999" style={styles.searchIcon} />
+      <View style={[styles.searchContainer, { 
+        backgroundColor: theme.colors.background.secondary,
+        borderColor: theme.colors.border
+      }]}>
+        <Ionicons name="search-outline" size={20} color={theme.colors.text.tertiary} style={styles.searchIcon} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: theme.colors.text.primary }]}
           placeholder="Search locations..."
+          placeholderTextColor={theme.colors.text.tertiary}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery !== '' && (
           <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
-            <Ionicons name="close-circle" size={20} color="#999" />
+            <Ionicons name="close-circle" size={20} color={theme.colors.text.tertiary} />
           </TouchableOpacity>
         )}
       </View>
       
-      <View style={styles.categoriesContainer}>
+      <View style={styles.categoryContainer}>
         <FlatList
-          data={locationTypes}
-          renderItem={({ item }) => renderCategoryTab(item)}
-          keyExtractor={item => item}
+          data={categories}
+          renderItem={renderCategory}
+          keyExtractor={(item) => item}
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoriesList}
+          contentContainerStyle={styles.categoryList}
         />
       </View>
       
       <FlatList
         data={filteredLocations}
         renderItem={renderLocation}
-        keyExtractor={item => item.id.toString()}
-        contentContainerStyle={styles.locationsList}
-        ListEmptyComponent={renderEmptyState}
+        keyExtractor={(item) => item.id}
+        numColumns={2}
+        contentContainerStyle={styles.locationList}
+        columnWrapperStyle={styles.columnWrapper}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={EmptyListComponent}
       />
     </SafeAreaView>
   );
@@ -152,163 +275,181 @@ const ExploreScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   header: {
     padding: 16,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e1e1',
   },
-  screenTitle: {
-    fontSize: 24,
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerTitleContainer: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  headerTitle: {
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#333',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    marginTop: 2,
+  },
+  logoImage: {
+    width: 40,
+    height: 40,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
     marginHorizontal: 16,
-    marginVertical: 12,
+    marginTop: 12,
+    marginBottom: 8,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e1e1e1',
+    height: 48,
   },
   searchIcon: {
     marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    height: 40,
+    height: 48,
     fontSize: 16,
-    color: '#333',
   },
   clearButton: {
     padding: 4,
   },
-  categoriesContainer: {
-    marginBottom: 8,
+  categoryContainer: {
+    marginVertical: 8,
   },
-  categoriesList: {
+  categoryList: {
     paddingHorizontal: 16,
   },
   categoryTab: {
     paddingVertical: 8,
     paddingHorizontal: 16,
-    marginRight: 8,
+    marginRight: 12,
     borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
   },
-  activeCategoryTab: {
-    backgroundColor: '#4e73df',
+  selectedCategoryTab: {
+    borderWidth: 1,
   },
-  categoryTabText: {
+  categoryText: {
     fontSize: 14,
-    color: '#666',
     fontWeight: '500',
   },
-  activeCategoryTabText: {
-    color: '#fff',
+  selectedCategoryText: {
+    fontWeight: '600',
   },
-  locationsList: {
-    padding: 16,
-    paddingBottom: 80,
+  locationList: {
+    padding: 8,
+    paddingBottom: 16,
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
   },
   locationCard: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
+    width: CARD_WIDTH,
+    height: 180,
     marginBottom: 16,
+    marginHorizontal: 4,
+    borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowRadius: 4,
+  },
+  locationImageContainer: {
+    position: 'relative',
+    height: '100%',
+    width: '100%',
   },
   locationImage: {
     width: '100%',
-    height: 160,
+    height: '100%',
   },
-  placeholderImage: {
-    width: '100%',
-    height: 160,
-    backgroundColor: '#c2c9d6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  locationMeta: {
+  locationTypeTag: {
     position: 'absolute',
-    top: 12,
-    left: 12,
+    top: 8,
+    right: 8,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 12,
   },
-  categoryBadge: {
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-  },
-  categoryText: {
+  locationTypeText: {
     color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
+    fontSize: 10,
+    fontWeight: '500',
   },
-  locationInfo: {
-    padding: 16,
+  locationInfoOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 10,
   },
   locationName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  locationDescription: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  locationCoordinates: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  coordinatesText: {
-    fontSize: 13,
-    color: '#666',
-    marginLeft: 6,
-  },
-  directionsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f9a826',
-    padding: 12,
-  },
-  directionsText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  emptyStateContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginTop: 16,
+    fontWeight: 'bold',
     marginBottom: 8,
   },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#888',
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  tourButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  directionsButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#000',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    zIndex: 1,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    marginTop: 40,
+  },
+  emptyText: {
+    fontSize: 16,
     textAlign: 'center',
+    marginTop: 16,
   },
 });
 
