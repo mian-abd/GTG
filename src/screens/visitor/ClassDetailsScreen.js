@@ -6,21 +6,50 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
-  Image
+  Image,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 // Import demo data
-import { CLASSES } from '../../utils/demoData';
+import { CLASSES, LOCATIONS } from '../../utils/demoData';
 import { formatDate, formatTime } from '../../utils/helpers';
+import { useTheme } from '../../context/ThemeContext';
 
 const ClassDetailsScreen = ({ navigation, route }) => {
+  const { theme } = useTheme();
+  
   // Get class by ID from params, or use first class as default
   const classId = route.params?.classId?.replace('class-', '') || CLASSES[0].id;
   const classDetails = CLASSES.find(cls => cls.id === classId) || CLASSES[0];
   
   const handleNavigateToLocation = () => {
-    navigation.navigate('MapDirections', { locationId: classDetails.location });
+    // Map the classroom location name to an actual location ID
+    // For example, "Julian Science Center 103" should match with "Julian Science and Mathematics Center"
+    let locationId = null;
+    
+    // Extract the building name from the classroom location
+    const classLocation = classDetails.location;
+    
+    // Find a matching location based on partial name matching
+    const matchingLocation = LOCATIONS.find(location => {
+      return classLocation.toLowerCase().includes(location.name.toLowerCase()) ||
+             location.name.toLowerCase().includes(classLocation.split(' ')[0].toLowerCase());
+    });
+    
+    if (matchingLocation) {
+      locationId = matchingLocation.id;
+    } else {
+      // Default behavior: if no match, alert the user
+      Alert.alert(
+        'Location Not Found',
+        'Could not find exact building location. Please use the Explore tab to find your destination.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    navigation.navigate('MapDirections', { locationId });
   };
   
   const handleContactInstructor = () => {
@@ -29,60 +58,69 @@ const ClassDetailsScreen = ({ navigation, route }) => {
   };
   
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.secondary }]}>
+      <View style={[styles.header, { 
+        backgroundColor: theme.colors.background.primary,
+        borderBottomColor: theme.colors.border
+      }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Class Details</Text>
+        <Text style={[styles.headerTitle, { color: theme.colors.text.primary }]}>Class Details</Text>
         <View style={{ width: 24 }} />
       </View>
       
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.classHeader}>
-          <View style={styles.classTypeIndicator} />
+        <View style={[styles.classHeader, { 
+          backgroundColor: theme.colors.background.primary,
+          borderBottomColor: theme.colors.border
+        }]}>
+          <View style={[styles.classTypeIndicator, { backgroundColor: theme.colors.primary }]} />
           <View style={styles.classHeaderContent}>
-            <Text style={styles.className}>{classDetails.name}</Text>
-            <View style={styles.classBadge}>
-              <Text style={styles.classBadgeText}>Class</Text>
+            <Text style={[styles.className, { color: theme.colors.text.primary }]}>{classDetails.name}</Text>
+            <View style={[styles.classBadge, { backgroundColor: theme.colors.primary + '20' }]}>
+              <Text style={[styles.classBadgeText, { color: theme.colors.primary }]}>Class</Text>
             </View>
           </View>
         </View>
         
-        <View style={styles.detailsCard}>
+        <View style={[styles.detailsCard, { 
+          backgroundColor: theme.colors.card,
+          shadowColor: theme.mode === 'dark' ? '#000' : '#555'
+        }]}>
           <View style={styles.detailRow}>
-            <Ionicons name="person-outline" size={20} color="#666" style={styles.detailIcon} />
+            <Ionicons name="person-outline" size={20} color={theme.colors.text.tertiary} style={styles.detailIcon} />
             <View>
-              <Text style={styles.detailLabel}>Instructor</Text>
-              <Text style={styles.detailValue}>{classDetails.instructor}</Text>
+              <Text style={[styles.detailLabel, { color: theme.colors.text.tertiary }]}>Instructor</Text>
+              <Text style={[styles.detailValue, { color: theme.colors.text.primary }]}>{classDetails.instructor}</Text>
             </View>
           </View>
           
           <View style={styles.detailRow}>
-            <Ionicons name="calendar-outline" size={20} color="#666" style={styles.detailIcon} />
+            <Ionicons name="calendar-outline" size={20} color={theme.colors.text.tertiary} style={styles.detailIcon} />
             <View>
-              <Text style={styles.detailLabel}>Date</Text>
-              <Text style={styles.detailValue}>{formatDate(classDetails.schedule.date, 'full')}</Text>
+              <Text style={[styles.detailLabel, { color: theme.colors.text.tertiary }]}>Date</Text>
+              <Text style={[styles.detailValue, { color: theme.colors.text.primary }]}>{formatDate(classDetails.schedule.date, 'full')}</Text>
             </View>
           </View>
           
           <View style={styles.detailRow}>
-            <Ionicons name="time-outline" size={20} color="#666" style={styles.detailIcon} />
+            <Ionicons name="time-outline" size={20} color={theme.colors.text.tertiary} style={styles.detailIcon} />
             <View>
-              <Text style={styles.detailLabel}>Time</Text>
-              <Text style={styles.detailValue}>{formatTime(classDetails.schedule.time)}</Text>
+              <Text style={[styles.detailLabel, { color: theme.colors.text.tertiary }]}>Time</Text>
+              <Text style={[styles.detailValue, { color: theme.colors.text.primary }]}>{formatTime(classDetails.schedule.time)}</Text>
             </View>
           </View>
           
           <View style={styles.detailRow}>
-            <Ionicons name="location-outline" size={20} color="#666" style={styles.detailIcon} />
+            <Ionicons name="location-outline" size={20} color={theme.colors.text.tertiary} style={styles.detailIcon} />
             <View style={styles.locationDetail}>
               <View>
-                <Text style={styles.detailLabel}>Location</Text>
-                <Text style={styles.detailValue}>{classDetails.location}</Text>
+                <Text style={[styles.detailLabel, { color: theme.colors.text.tertiary }]}>Location</Text>
+                <Text style={[styles.detailValue, { color: theme.colors.text.primary }]}>{classDetails.location}</Text>
               </View>
               <TouchableOpacity 
-                style={styles.directionsButton} 
+                style={[styles.directionsButton, { backgroundColor: theme.colors.primary }]}
                 onPress={handleNavigateToLocation}
               >
                 <Ionicons name="navigate-outline" size={16} color="#fff" />
@@ -92,26 +130,32 @@ const ClassDetailsScreen = ({ navigation, route }) => {
           </View>
         </View>
         
-        <View style={styles.descriptionCard}>
-          <Text style={styles.sectionTitle}>Description</Text>
-          <Text style={styles.descriptionText}>{classDetails.description}</Text>
+        <View style={[styles.descriptionCard, { 
+          backgroundColor: theme.colors.card,
+          shadowColor: theme.mode === 'dark' ? '#000' : '#555'
+        }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Description</Text>
+          <Text style={[styles.descriptionText, { color: theme.colors.text.secondary }]}>{classDetails.description}</Text>
         </View>
         
-        <View style={styles.actionCard}>
+        <View style={[styles.actionCard, { 
+          backgroundColor: theme.colors.card,
+          shadowColor: theme.mode === 'dark' ? '#000' : '#555'
+        }]}>
           <TouchableOpacity 
-            style={styles.actionButton}
+            style={[styles.actionButton, { backgroundColor: theme.colors.tertiary }]}
             onPress={handleContactInstructor}
           >
             <Ionicons name="mail-outline" size={20} color="#fff" />
             <Text style={styles.actionButtonText}>Contact Instructor</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={[styles.actionButton, { backgroundColor: theme.colors.secondary }]}>
             <Ionicons name="document-outline" size={20} color="#fff" />
             <Text style={styles.actionButtonText}>View Materials</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}>
             <Ionicons name="calendar-outline" size={20} color="#fff" />
             <Text style={styles.actionButtonText}>Add to Calendar</Text>
           </TouchableOpacity>
@@ -124,7 +168,6 @@ const ClassDetailsScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   header: {
     flexDirection: 'row',
@@ -132,9 +175,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e1e1',
   },
   backButton: {
     padding: 4,
@@ -142,21 +183,17 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
   },
   scrollView: {
     flex: 1,
   },
   classHeader: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e1e1',
   },
   classTypeIndicator: {
     width: 6,
-    backgroundColor: '#4e73df',
     borderRadius: 3,
     marginRight: 14,
   },
@@ -166,27 +203,22 @@ const styles = StyleSheet.create({
   className: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 8,
   },
   classBadge: {
-    backgroundColor: '#e8eeff',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 4,
     alignSelf: 'flex-start',
   },
   classBadgeText: {
-    color: '#4e73df',
     fontSize: 12,
     fontWeight: '600',
   },
   detailsCard: {
-    backgroundColor: '#fff',
     margin: 16,
     padding: 16,
     borderRadius: 8,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -203,12 +235,10 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 12,
-    color: '#999',
     marginBottom: 2,
   },
   detailValue: {
     fontSize: 16,
-    color: '#333',
   },
   locationDetail: {
     flex: 1,
@@ -219,7 +249,6 @@ const styles = StyleSheet.create({
   directionsButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f9a826',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 4,
@@ -231,12 +260,10 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   descriptionCard: {
-    backgroundColor: '#fff',
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 16,
     borderRadius: 8,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -245,20 +272,16 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 12,
   },
   descriptionText: {
     fontSize: 16,
-    color: '#666',
     lineHeight: 24,
   },
   actionCard: {
-    backgroundColor: '#fff',
     margin: 16,
     padding: 16,
     borderRadius: 8,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -268,7 +291,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4e73df',
     padding: 12,
     borderRadius: 6,
     marginBottom: 12,

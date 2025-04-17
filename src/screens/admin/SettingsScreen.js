@@ -19,10 +19,9 @@ import Card from '../../components/Card';
 const SettingsScreen = () => {
   const navigation = useNavigation();
   const { handleLogout } = useAuth();
-  const { theme, isDarkMode, toggleTheme, useSystemTheme, enableSystemTheme } = useTheme();
+  const { theme, isDarkMode, toggleTheme } = useTheme();
   const [enableNotifications, setEnableNotifications] = useState(true);
   const [emailUpdates, setEmailUpdates] = useState(true);
-  const [useDeviceTheme, setUseDeviceTheme] = useState(useSystemTheme);
 
   const handleUserManagement = () => {
     navigation.navigate('UserManagement');
@@ -38,13 +37,6 @@ const SettingsScreen = () => {
 
   const handleThemeToggle = (value) => {
     toggleTheme(value);
-  };
-
-  const handleDeviceThemeToggle = (value) => {
-    setUseDeviceTheme(value);
-    if (value) {
-      enableSystemTheme();
-    }
   };
 
   const renderSettingItem = (icon, title, description, action, isSwitch = false, value = false, onValueChange = null) => (
@@ -137,16 +129,6 @@ const SettingsScreen = () => {
             <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>App Settings</Text>
 
             {renderSettingItem(
-              'phone-portrait',
-              'Use Device Theme',
-              'Match app theme with your device settings',
-              null,
-              true,
-              useDeviceTheme,
-              handleDeviceThemeToggle
-            )}
-
-            {!useDeviceTheme && renderSettingItem(
               'moon',
               'Dark Mode',
               'Use dark theme throughout the app',

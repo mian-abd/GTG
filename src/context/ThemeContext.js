@@ -1,5 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { Appearance, useColorScheme } from 'react-native';
+import React, { createContext, useState, useContext } from 'react';
 import { COLORS } from '../assets';
 
 // Create theme variants
@@ -54,52 +53,19 @@ const ThemeContext = createContext({
   theme: darkTheme,
   isDarkMode: true,
   toggleTheme: () => {},
-  useSystemTheme: true,
-  enableSystemTheme: () => {},
 });
 
 export const ThemeProvider = ({ children }) => {
-  // Get system theme
-  const colorScheme = useColorScheme();
+  // Always start with dark mode
+  const [isDarkMode, setIsDarkMode] = useState(true);
   
-  // State to track if we're using the system theme or a manually set theme
-  // Default is true - use the system theme by default
-  const [useSystemTheme, setUseSystemTheme] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState(colorScheme === 'dark');
-
-  // Update theme when system theme changes
-  useEffect(() => {
-    if (useSystemTheme) {
-      setIsDarkMode(colorScheme === 'dark');
-    }
-  }, [colorScheme, useSystemTheme]);
-
-  // Subscribe to appearance changes
-  useEffect(() => {
-    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
-      if (useSystemTheme) {
-        setIsDarkMode(colorScheme === 'dark');
-      }
-    });
-
-    return () => subscription.remove();
-  }, [useSystemTheme]);
-
   // Toggle theme function
   const toggleTheme = (value) => {
     if (typeof value === 'boolean') {
       setIsDarkMode(value);
-      setUseSystemTheme(false);
     } else {
       setIsDarkMode(prevMode => !prevMode);
-      setUseSystemTheme(false);
     }
-  };
-
-  // Enable system theme sync
-  const enableSystemTheme = () => {
-    setUseSystemTheme(true);
-    setIsDarkMode(colorScheme === 'dark');
   };
 
   const theme = isDarkMode ? darkTheme : lightTheme;
@@ -110,8 +76,6 @@ export const ThemeProvider = ({ children }) => {
         theme, 
         isDarkMode, 
         toggleTheme,
-        useSystemTheme,
-        enableSystemTheme
       }}
     >
       {children}

@@ -22,6 +22,29 @@ import { useTheme } from '../../context/ThemeContext';
 import { LOCATIONS } from '../../utils/demoData';
 import { IMAGES } from '../../assets';
 
+// Map location names to local asset filenames - should match ExploreScreen
+const locationImages = {
+  'Julian Science and Mathematics Center': require('../../../assets/The Percy L. Julian Science and Mathematics Center.jpg'),
+  'Hoover Hall': require('../../../assets/Hoover Hall.jpg'),
+  'Roy O. West Library': require('../../../assets/Roy O. West Library.jpg'),
+  'Green Center for the Performing Arts': require('../../../assets/The Judson and Joyce Green Center for the Performing Arts.jpg'),
+  'Lilly Center': require('../../../assets/The Lilly Center.jpg'),
+  'Peeler Art Center': require('../../../assets/The Richard E. Peeler Art Center.jpg'),
+  'East College': require('../../../assets/East college.jpg'),
+  'Asbury Hall': require('../../../assets/Asbury Hall.jpg'),
+  'Harrison Hall': require('../../../assets/Harrison Hall.jpg'),
+  'Bowman Park': require('../../../assets/Bowman Park.jpg'),
+  'Memorial Student Union': require('../../../assets/The Memorial Student Union Building.jpg'),
+  'Rector Village': require('../../../assets/Hoover Hall.jpg'), // No specific image available
+  'Humbert Hall': require('../../../assets/Humbert Hall.jpeg'),
+  'Ubben Quadrangle': require('../../../assets/ubben quadrangle.jpg'),
+  'Reavis Stadium': require('../../../assets/DePauw Athletics Facilities.jpg'),
+  'Prindle Institute for Ethics': require('../../../assets/Prindle Institute for Ethics.jpeg'),
+  'DePauw Nature Park': require('../../../assets/DePauw Nature Park.jpg'),
+  'Greencastle Square': require('../../../assets/Eli\'s Books.jpg'),
+  'Center for Diversity and Inclusion': require('../../../assets/The Justin and Darrianne Christian Center for Diversity and Inclusion.jpg'),
+};
+
 const MapDirectionsScreen = ({ navigation, route }) => {
   const { theme } = useTheme();
   
@@ -134,6 +157,20 @@ const MapDirectionsScreen = ({ navigation, route }) => {
       return;
     }
     
+    // List of locations that should not have virtual tours
+    const noTourLocations = [
+      'East College',
+      'Asbury Hall',
+      'Harrison Hall',
+      'Memorial Student Union',
+      'Rector Village'
+    ];
+    
+    if (noTourLocations.includes(selectedLocation.name)) {
+      Alert.alert('Virtual Tour Not Available', 'This location does not have a virtual tour available at this time.');
+      return;
+    }
+    
     // Get the appropriate virtual tour URL based on location name
     let tourUrl = null;
     
@@ -200,11 +237,6 @@ const MapDirectionsScreen = ({ navigation, route }) => {
       case 'Olin Biological Sciences Building':
         tourUrl = 'https://www.depauw.edu/virtual-tour/location/19/';
         break;
-      case 'Memorial Student Union':
-      case 'The Memorial Student Union Building':
-        // No direct link provided, use default if available
-        tourUrl = selectedLocation.virtualTourUrl || null;
-        break;
       case 'Prindle Institute for Ethics':
       case 'The Janet Prindle Institute for Ethics':
         tourUrl = 'https://app.lapentor.com/sphere/prindle';
@@ -240,6 +272,19 @@ const MapDirectionsScreen = ({ navigation, route }) => {
   const hasVirtualTour = (location) => {
     if (!location) return false;
     
+    // Exclude locations that should not have virtual tours
+    const noTourLocations = [
+      'East College',
+      'Asbury Hall',
+      'Harrison Hall',
+      'Memorial Student Union',
+      'Rector Village'
+    ];
+    
+    if (noTourLocations.includes(location.name)) {
+      return false;
+    }
+    
     // Check if the location is in our list of locations with direct tour links
     const locationsWithTours = [
       'Hoover Hall',
@@ -250,7 +295,6 @@ const MapDirectionsScreen = ({ navigation, route }) => {
       'Roy O. West Library',
       'DePauw Nature Park',
       'Prindle Institute for Ethics',
-      'Memorial Student Union',
       'Center for Diversity and Inclusion',
       'Bishop Roberts Hall'
     ];
@@ -281,7 +325,14 @@ const MapDirectionsScreen = ({ navigation, route }) => {
       <ScrollView style={styles.scrollView}>
         {selectedLocation ? (
           <Animated.View style={{opacity: fadeAnim, transform: [{translateY: slideAnim}]}}>
-            {selectedLocation.imageUrl ? (
+            {/* Use same image as thumbnail in ExploreScreen */}
+            {locationImages[selectedLocation.name] ? (
+              <Image 
+                source={locationImages[selectedLocation.name]} 
+                style={styles.locationImage}
+                resizeMode="cover"
+              />
+            ) : selectedLocation.imageUrl ? (
               <Image 
                 source={{ uri: selectedLocation.imageUrl }} 
                 style={styles.locationImage}

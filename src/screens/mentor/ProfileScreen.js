@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -23,19 +23,13 @@ const currentMentor = MENTORS[0];
 
 const ProfileScreen = ({ onLogout, navigation }) => {
   // Get theme context
-  const { theme, isDarkMode, toggleTheme, useSystemTheme, enableSystemTheme } = useTheme();
+  const { theme, isDarkMode, toggleTheme } = useTheme();
   const auth = useAuth();
   
   // State for settings
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailAlertsEnabled, setEmailAlertsEnabled] = useState(true);
-  const [useDeviceTheme, setUseDeviceTheme] = useState(useSystemTheme);
   
-  // Sync with theme context
-  useEffect(() => {
-    setUseDeviceTheme(useSystemTheme);
-  }, [useSystemTheme]);
-
   const handleLogout = () => {
     Alert.alert(
       'Logout',
@@ -63,13 +57,6 @@ const ProfileScreen = ({ onLogout, navigation }) => {
   
   const handleThemeToggle = (value) => {
     toggleTheme(value);
-  };
-  
-  const handleDeviceThemeToggle = (value) => {
-    setUseDeviceTheme(value);
-    if (value) {
-      enableSystemTheme();
-    }
   };
 
   return (
@@ -168,31 +155,16 @@ const ProfileScreen = ({ onLogout, navigation }) => {
           
           <View style={[styles.settingItem, { borderBottomColor: theme.colors.border }]}>
             <View style={styles.settingLeft}>
-              <Ionicons name="phone-portrait-outline" size={24} color={theme.colors.text.secondary} style={styles.settingIcon} />
-              <Text style={[styles.settingText, { color: theme.colors.text.primary }]}>Use Device Theme</Text>
+              <Ionicons name="moon-outline" size={24} color={theme.colors.text.secondary} style={styles.settingIcon} />
+              <Text style={[styles.settingText, { color: theme.colors.text.primary }]}>Dark Mode</Text>
             </View>
             <Switch
-              value={useDeviceTheme}
-              onValueChange={handleDeviceThemeToggle}
+              value={isDarkMode}
+              onValueChange={handleThemeToggle}
               trackColor={{ false: theme.colors.background.tertiary, true: theme.colors.primary }}
               thumbColor="#fff"
             />
           </View>
-          
-          {!useDeviceTheme && (
-            <View style={[styles.settingItem, { borderBottomColor: theme.colors.border }]}>
-              <View style={styles.settingLeft}>
-                <Ionicons name="moon-outline" size={24} color={theme.colors.text.secondary} style={styles.settingIcon} />
-                <Text style={[styles.settingText, { color: theme.colors.text.primary }]}>Dark Mode</Text>
-              </View>
-              <Switch
-                value={isDarkMode}
-                onValueChange={handleThemeToggle}
-                trackColor={{ false: theme.colors.background.tertiary, true: theme.colors.primary }}
-                thumbColor="#fff"
-              />
-            </View>
-          )}
         </View>
         
         {/* Account Section */}

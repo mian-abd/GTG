@@ -166,30 +166,16 @@ const ProfileScreen = () => {
       </View>
       
       <View style={[styles.settingRow, { borderBottomColor: theme.colors.border }]}>
-        <Ionicons name="phone-portrait-outline" size={22} color={theme.colors.text.secondary} />
-        <Text style={[styles.settingText, { color: theme.colors.text.primary }]}>Use Device Theme</Text>
+        <Ionicons name="moon-outline" size={22} color={theme.colors.text.secondary} />
+        <Text style={[styles.settingText, { color: theme.colors.text.primary }]}>Dark Mode</Text>
         <Switch
-          value={useDeviceTheme}
-          onValueChange={handleDeviceThemeToggle}
+          value={isDarkMode}
+          onValueChange={handleThemeToggle}
           trackColor={{ false: theme.colors.background.tertiary, true: theme.colors.primary }}
           thumbColor="#fff"
           style={styles.settingSwitch}
         />
       </View>
-      
-      {!useDeviceTheme && (
-        <View style={[styles.settingRow, { borderBottomColor: theme.colors.border }]}>
-          <Ionicons name="moon-outline" size={22} color={theme.colors.text.secondary} />
-          <Text style={[styles.settingText, { color: theme.colors.text.primary }]}>Dark Mode</Text>
-          <Switch
-            value={isDarkMode}
-            onValueChange={handleThemeToggle}
-            trackColor={{ false: theme.colors.background.tertiary, true: theme.colors.primary }}
-            thumbColor="#fff"
-            style={styles.settingSwitch}
-          />
-        </View>
-      )}
       
       <View style={[styles.settingRow, { borderBottomColor: theme.colors.border }]}>
         <Ionicons name="location-outline" size={22} color={theme.colors.text.secondary} />
