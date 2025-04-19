@@ -4,9 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import 'react-native-gesture-handler';
-import firebase from 'firebase/app';
-import 'firebase/auth';
-import 'firebase/firestore';
+// Import Firebase config from utils (remove direct firebase imports)
 
 // Context
 import { AuthProvider } from './src/context/AuthContext';
@@ -19,20 +17,7 @@ import MentorNavigator from './src/navigation/MentorNavigator';
 import VisitorNavigator from './src/navigation/VisitorNavigator';
 import AppNavigator from './src/navigation/AppNavigator';
 
-// Firebase config - only needed if not using react-native-firebase
-const firebaseConfig = {
-  // Your Firebase configuration goes here
-  apiKey: "AIzaSyAPidd0JyfmTXP4skidXaIjQBk78d2sF1o",
-  authDomain: "gatewaytogold-1bf66.firebaseapp.com",
-  projectId: "gatewaytogold-1bf66",
-  storageBucket: "gatewaytogold-1bf66.firebasestorage.app",
-  messagingSenderId: "1098642367077",
-  appId: "1:1098642367077:android:6e6c5164d642267672dc8c"
-};
-
-// Initialize Firebase
-// Note: Initialization is now handled in src/utils/firebaseConfig.js
-// But we keep this here for reference
+// Firebase config is now handled in src/utils/firebaseConfig.js
 
 // StatusBar component that uses the theme
 const ThemedStatusBar = () => {
@@ -100,8 +85,10 @@ export default function App() {
     return (
       <ThemeProvider>
         <SafeAreaProvider>
-          <ThemedStatusBar />
-          <AppNavigator />
+          <NavigationContainer>
+            <ThemedStatusBar />
+            <AppNavigator />
+          </NavigationContainer>
           {showModeSelector && <ModeSelector />}
         </SafeAreaProvider>
       </ThemeProvider>

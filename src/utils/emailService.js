@@ -4,7 +4,9 @@
 // IMPORTANT: Replace this with your own SendGrid API key
 // For security reasons, use environment variables or a secure storage solution
 // DO NOT commit your API key to version control
-const SENDGRID_API_KEY = 'YOUR_SENDGRID_API_KEY_HERE';
+// Either set this value from your environment or use a secure storage solution
+// For development, you can set it directly here but remember to remove it before committing
+const SENDGRID_API_KEY = 'YOUR_SENDGRID_API_KEY_HERE'; // Replace with your actual API key but NEVER commit it
 const SENDGRID_API_URL = 'https://api.sendgrid.com/v3/mail/send';
 
 // IMPORTANT: This email must be verified in your SendGrid account
