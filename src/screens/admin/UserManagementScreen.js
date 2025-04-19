@@ -44,6 +44,7 @@ const UserManagementScreen = () => {
   const [editPhone, setEditPhone] = useState('');
   const [editAddress, setEditAddress] = useState('');
   const [editNotes, setEditNotes] = useState('');
+  const [editRoomNumber, setEditRoomNumber] = useState('');
 
   useEffect(() => {
     fetchUsers();
@@ -57,6 +58,7 @@ const UserManagementScreen = () => {
       setEditPhone(selectedUser.phone || '');
       setEditAddress(selectedUser.address || '');
       setEditNotes(selectedUser.notes || '');
+      setEditRoomNumber(selectedUser.roomNumber || '');
     }
   }, [selectedUser, editUserModalVisible]);
 
@@ -84,7 +86,19 @@ const UserManagementScreen = () => {
 
   const handleEditUser = () => {
     setUserActionModalVisible(false);
-    setEditUserModalVisible(true);
+    
+    // Delay to prevent stuttering when opening the edit modal
+    setTimeout(() => {
+      // Set form values from selected user
+      setEditName(selectedUser.name || '');
+      setEditEmail(selectedUser.email || '');
+      setEditPhone(selectedUser.phone || '');
+      setEditAddress(selectedUser.address || '');
+      setEditNotes(selectedUser.notes || '');
+      setEditRoomNumber(selectedUser.roomNumber || '');
+      
+      setEditUserModalVisible(true);
+    }, 300);
   };
 
   const handleDeleteUser = async () => {
@@ -149,6 +163,7 @@ const UserManagementScreen = () => {
         phone: editPhone,
         address: editAddress,
         notes: editNotes,
+        roomNumber: editRoomNumber,
         updatedAt: new Date().toISOString()
       };
       
@@ -444,6 +459,7 @@ const UserManagementScreen = () => {
           // Add any other fields from the CSV
           address: user.address || '',
           notes: user.notes || '',
+          roomNumber: user.roomNumber || '',
           // Add timestamps
           importedAt: new Date().toISOString(),
         };
@@ -528,6 +544,7 @@ const UserManagementScreen = () => {
           email: 'john.smith@example.com',
           phone: '555-1234',
           address: '123 Main St',
+          roomNumber: '101',
           notes: 'Sample student record'
         },
         {
@@ -535,6 +552,7 @@ const UserManagementScreen = () => {
           email: 'jane.doe@example.com',
           phone: '555-5678',
           address: '456 Oak Ave',
+          roomNumber: '102',
           notes: 'Another sample record'
         },
         {
@@ -542,6 +560,7 @@ const UserManagementScreen = () => {
           email: 'robert.j@example.com',
           phone: '555-9101',
           address: '789 Pine Blvd',
+          roomNumber: '103',
           notes: 'Third sample record'
         },
         {
@@ -549,6 +568,7 @@ const UserManagementScreen = () => {
           email: 'khangaienkhbat_2026@depauw.edu',
           phone: '555-2233',
           address: '101 Maple St',
+          roomNumber: '104',
           notes: 'Fourth sample record'
         }
       ];
@@ -568,6 +588,7 @@ const UserManagementScreen = () => {
         <Text style={styles.userName}>{item.name}</Text>
         <Text style={styles.userEmail}>{item.email}</Text>
         {item.phone && <Text style={styles.userPhone}>{item.phone}</Text>}
+        {item.roomNumber && <Text style={styles.userPhone}>Room: {item.roomNumber}</Text>}
       </View>
       <TouchableOpacity 
         style={styles.userAction}
@@ -685,6 +706,16 @@ const UserManagementScreen = () => {
                 blurOnSubmit={false}
               />
               
+              <Text style={styles.inputLabel}>Room Number</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editRoomNumber}
+                onChangeText={setEditRoomNumber}
+                placeholder="Room Number"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
               <Text style={styles.inputLabel}>Address</Text>
               <TextInput
                 style={styles.editInput}
@@ -749,24 +780,24 @@ const UserManagementScreen = () => {
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       ) : (
-        <FlatList
+      <FlatList
           data={users.filter(user => 
             user.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
             user.email?.toLowerCase().includes(searchQuery.toLowerCase())
           )}
           keyExtractor={(item) => item.id || Math.random().toString()}
           renderItem={renderUserItem}
-          ListEmptyComponent={() => (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="people-outline" size={64} color="#ccc" />
-              <Text style={styles.emptyTitle}>No users found</Text>
-              <Text style={styles.emptyText}>
-                Users you add or import will appear here.
-              </Text>
-            </View>
-          )}
-          contentContainerStyle={styles.listContainer}
-        />
+        ListEmptyComponent={() => (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="people-outline" size={64} color="#ccc" />
+            <Text style={styles.emptyTitle}>No users found</Text>
+            <Text style={styles.emptyText}>
+              Users you add or import will appear here.
+            </Text>
+          </View>
+        )}
+        contentContainerStyle={styles.listContainer}
+      />
       )}
 
       <TouchableOpacity 

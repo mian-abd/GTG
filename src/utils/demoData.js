@@ -60,6 +60,7 @@ export const STUDENTS = [
     medicalInfo: 'No allergies or medical conditions',
     emergencyContact: 'Jane Doe, 555-123-4567, Mother',
     roomAssignment: 'Hoover Hall, Room 203',
+    roomNumber: '203',
     classSchedule: ['CS101', 'MATH142', 'COMM210'],
   },
   { 
@@ -73,6 +74,7 @@ export const STUDENTS = [
     medicalInfo: 'Penicillin allergy',
     emergencyContact: 'Robert Smith, 555-987-6543, Father',
     roomAssignment: 'Hoover Hall, Room 215',
+    roomNumber: '215',
     classSchedule: ['BIO101', 'CHEM120', 'ENG101'],
   },
   { 
@@ -86,6 +88,7 @@ export const STUDENTS = [
     medicalInfo: 'Asthma, carries inhaler',
     emergencyContact: 'Sarah Johnson, 555-246-8102, Mother',
     roomAssignment: 'Julian Hall, Room 112',
+    roomNumber: '112',
     classSchedule: ['PHYS101', 'MATH241', 'CS142'],
   },
 ];

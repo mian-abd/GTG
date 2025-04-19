@@ -34,7 +34,18 @@ const DashboardScreen = () => {
 
   useEffect(() => {
     fetchStudents();
+    fetchMentors();
   }, []);
+
+  const fetchMentors = async () => {
+    try {
+      // Fetch mentors from Firestore
+      const mentorsData = await getDocuments('mentors');
+      setMentorsCount(mentorsData.length.toString());
+    } catch (error) {
+      console.error('Error fetching mentors:', error);
+    }
+  };
 
   const fetchStudents = async () => {
     try {
@@ -45,7 +56,7 @@ const DashboardScreen = () => {
       
       // Update counts
       setActiveVisitorsCount(studentsData.length);
-      setMentorsCount('12'); // This could be dynamic too
+      // Removed hardcoded mentor count as we're now fetching it in fetchMentors
       
       setLoading(false);
     } catch (error) {
@@ -98,6 +109,7 @@ const DashboardScreen = () => {
       <View style={styles.studentInfo}>
         <Text style={styles.studentName}>{item.name || 'Unknown'}</Text>
         <Text style={styles.studentEmail}>{item.email || 'No email'}</Text>
+        {item.roomNumber && <Text style={styles.studentEmail}>Room: {item.roomNumber}</Text>}
       </View>
       <View style={styles.studentStatus}>
         <View style={[styles.statusIndicator, { backgroundColor: '#4CAF50' }]} />

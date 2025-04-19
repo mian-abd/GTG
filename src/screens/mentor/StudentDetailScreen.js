@@ -55,7 +55,7 @@ const StudentDetailScreen = ({ route, navigation }) => {
             <Ionicons name="pin-outline" size={18} color="#666" style={styles.infoIcon} />
             <Text style={styles.infoLabel}>Room</Text>
           </View>
-          <Text style={styles.infoValue}>{student.roomAssignment || 'Not assigned'}</Text>
+          <Text style={styles.infoValue}>{student.roomNumber || student.roomAssignment || 'Not assigned'}</Text>
         </View>
       </View>
       
