@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -15,8 +15,16 @@ const ManageMentorsScreen = () => {
   const [selectedMentor, setSelectedMentor] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [addFormVisible, setAddFormVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  
+  // Edit mentor form state
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editDepartment, setEditDepartment] = useState('');
+  const [editBiography, setEditBiography] = useState('');
+  
   const [newMentor, setNewMentor] = useState({
     name: '',
     email: '',
@@ -32,7 +40,7 @@ const ManageMentorsScreen = () => {
 
   const fetchMentors = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
       const fetchedMentors = await getDocuments('mentors');
       if (fetchedMentors && fetchedMentors.length > 0) {
         setMentors(fetchedMentors);
@@ -45,7 +53,7 @@ const ManageMentorsScreen = () => {
       // Fallback to demo data
       setMentors(MENTORS);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
   
@@ -67,11 +75,79 @@ const ManageMentorsScreen = () => {
     setAddModalVisible(true);
   };
 
+  // Set up edit form when a mentor is selected for editing
+  useEffect(() => {
+    if (selectedMentor && editModalVisible) {
+      setEditName(selectedMentor.name || '');
+      setEditEmail(selectedMentor.email || '');
+      setEditDepartment(selectedMentor.department || '');
+      setEditBiography(selectedMentor.biography || '');
+    }
+  }, [selectedMentor, editModalVisible]);
+
   // Handle edit mentor
   const handleEditMentor = (mentor) => {
-    // Navigate to edit form or show edit modal
-    console.log('Edit mentor:', mentor);
-    Alert.alert('Edit Mentor', 'This functionality will be implemented soon.');
+    setSelectedMentor(mentor);
+    setModalVisible(false);
+    setEditModalVisible(true);
+  };
+
+  // Handle save mentor changes
+  const handleSaveMentorChanges = async () => {
+    if (!editName.trim()) {
+      Alert.alert('Error', 'Name is required');
+      return;
+    }
+    
+    if (!editEmail.trim()) {
+      Alert.alert('Error', 'Email is required');
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      
+      // Prepare updated mentor data
+      const updatedMentorData = {
+        name: editName,
+        email: editEmail,
+        department: editDepartment,
+        biography: editBiography,
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Reset modal state first to prevent UI freezing
+      setEditModalVisible(false);
+      
+      // Update the document in Firestore
+      const result = await updateDocument('mentors', selectedMentor.id, updatedMentorData);
+      
+      if (result) {
+        // Update the mentor in local state first
+        setMentors(prevMentors => prevMentors.map(mentor => 
+          mentor.id === selectedMentor.id ? { ...mentor, ...updatedMentorData } : mentor
+        ));
+        
+        // Small delay before showing alert
+        setTimeout(() => {
+          Alert.alert('Success', 'Mentor updated successfully');
+          // Reset selected mentor after alert is closed
+          setSelectedMentor(null);
+        }, 300);
+      } else {
+        setTimeout(() => {
+          Alert.alert('Error', 'Failed to update mentor');
+        }, 300);
+      }
+    } catch (error) {
+      console.error('Error updating mentor:', error);
+      setTimeout(() => {
+        Alert.alert('Error', 'Failed to update mentor: ' + error.message);
+      }, 300);
+    } finally {
+      // Always reset loading state
+      setIsLoading(false);
+    }
   };
 
   // Handle delete mentor
@@ -86,7 +162,11 @@ const ManageMentorsScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              setLoading(true);
+              setIsLoading(true);
+              
+              // Close modal first to prevent UI freezing
+              setModalVisible(false);
+              
               // If using Firebase
               if (mentor.id) {
                 await deleteDocument('mentors', mentor.id);
@@ -95,16 +175,21 @@ const ManageMentorsScreen = () => {
               // Update local state
               setMentors(prev => prev.filter(m => m.id !== mentor.id));
               
-              // Close modal first, then clean up selected mentor reference
-              setModalVisible(false);
+              // Reset selected mentor
+              setSelectedMentor(null);
+              
+              // Show success message after small delay
               setTimeout(() => {
-                setSelectedMentor(null);
-              }, 100);
+                Alert.alert('Success', 'Mentor deleted successfully');
+              }, 300);
+              
             } catch (error) {
               console.error('Error deleting mentor:', error);
-              Alert.alert('Error', 'Failed to delete mentor');
+              setTimeout(() => {
+                Alert.alert('Error', `Failed to delete mentor: ${error.message}`);
+              }, 300);
             } finally {
-              setLoading(false);
+              setIsLoading(false);
             }
           }
         }
@@ -121,19 +206,27 @@ const ManageMentorsScreen = () => {
     }
 
     try {
-      setLoading(true);
+      setIsLoading(true);
+      
+      // Close modal first to prevent UI freezing
+      setAddFormVisible(false);
+      
       // Add to Firebase
-      const mentorId = await addDocument('mentors', newMentor);
+      const mentorId = await addDocument('mentors', {
+        ...newMentor,
+        createdAt: new Date().toISOString()
+      });
       
       // Update local state
       const addedMentor = {
         id: mentorId,
-        ...newMentor
+        ...newMentor,
+        createdAt: new Date().toISOString()
       };
       
       setMentors(prev => [...prev, addedMentor]);
       
-      // Reset form and close modal
+      // Reset form
       setNewMentor({
         name: '',
         email: '',
@@ -142,14 +235,107 @@ const ManageMentorsScreen = () => {
         students: []
       });
       
-      setAddFormVisible(false);
-      setAddModalVisible(false);
+      // Show success message after small delay
+      setTimeout(() => {
+        Alert.alert('Success', 'Mentor added successfully');
+      }, 300);
       
     } catch (error) {
       console.error('Error adding mentor:', error);
-      Alert.alert('Error', 'Failed to add mentor');
+      setTimeout(() => {
+        Alert.alert('Error', 'Failed to add mentor: ' + error.message);
+      }, 300);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
+    }
+  };
+
+  // Function to import sample data without needing a file picker
+  const handleImportSampleData = async () => {
+    try {
+      setIsLoading(true);
+      console.log('Importing sample mentor data...');
+
+      // Sample data for mentors
+      const sampleData = [
+        {
+          name: 'Dr. Sarah Reynolds',
+          email: 'sarah.reynolds@example.com',
+          department: 'Computer Science',
+          biography: 'PhD in Computer Science with 15 years of industry experience. Specializes in artificial intelligence and machine learning.',
+          students: []
+        },
+        {
+          name: 'Prof. Michael Chen',
+          email: 'michael.chen@example.com',
+          department: 'Electrical Engineering',
+          biography: 'Leading researcher in embedded systems and IoT technologies. Has published over 50 papers in top journals.',
+          students: []
+        },
+        {
+          name: 'Dr. Lisa Johnson',
+          email: 'lisa.johnson@example.com',
+          department: 'Business Administration',
+          biography: 'Former CEO with extensive experience in startups and venture capital. Mentors students interested in entrepreneurship.',
+          students: []
+        },
+        {
+          name: 'Prof. James Wilson',
+          email: 'james.wilson@example.com',
+          department: 'Mathematics',
+          biography: 'Specializes in applied mathematics and statistical analysis. Helps students develop strong analytical skills.',
+          students: []
+        }
+      ];
+
+      console.log('Processing sample mentor data:', sampleData);
+      
+      let importedCount = 0;
+      
+      // Get existing emails to prevent duplicates
+      const existingMentors = await getDocuments('mentors');
+      const existingEmails = {};
+      
+      existingMentors.forEach((mentor) => {
+        if (mentor.email) {
+          existingEmails[mentor.email.toLowerCase()] = true;
+        }
+      });
+      
+      // Add each mentor to the database
+      for (const mentor of sampleData) {
+        // Skip if email already exists
+        if (existingEmails[mentor.email.toLowerCase()]) {
+          console.log(`Skipping duplicate email: ${mentor.email}`);
+          continue;
+        }
+        
+        // Prepare mentor data with timestamps
+        const mentorData = {
+          ...mentor,
+          role: 'mentor',
+          status: 'active',
+          createdAt: new Date().toISOString(),
+        };
+        
+        // Add to Firestore
+        const mentorId = await addDocument('mentors', mentorData);
+        console.log(`Added mentor with ID: ${mentorId}`);
+        
+        // Add to local state with the new ID
+        setMentors(prev => [...prev, { ...mentorData, id: mentorId }]);
+        
+        importedCount++;
+      }
+      
+      // Show success message
+      Alert.alert('Success', `Successfully imported ${importedCount} mentors`);
+      
+    } catch (error) {
+      console.error('Error importing sample mentor data:', error);
+      Alert.alert('Error', `Failed to import sample mentors: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -161,72 +347,88 @@ const ManageMentorsScreen = () => {
       visible={addFormVisible}
       onRequestClose={() => setAddFormVisible(false)}
     >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <ScrollView>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add New Mentor</Text>
-              <TouchableOpacity onPress={() => setAddFormVisible(false)}>
-                <Ionicons name="close" size={24} color="black" />
+      <View style={styles.editModalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardAvoidingContainer}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+          enabled={Platform.OS === 'ios'}
+        >
+          <View style={styles.editModalContainer}>
+            <View style={styles.editModalHeader}>
+              <Text style={styles.editModalTitle}>Add New Mentor</Text>
+              <TouchableOpacity 
+                onPress={() => setAddFormVisible(false)}
+                hitSlop={{top: 20, right: 20, bottom: 20, left: 20}}
+              >
+                <Ionicons name="close" size={24} color="#666" />
               </TouchableOpacity>
             </View>
             
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Name *</Text>
+            <ScrollView 
+              contentContainerStyle={styles.editModalContent}
+              keyboardShouldPersistTaps="always"
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.inputLabel}>Name *</Text>
               <TextInput
-                style={styles.input}
+                style={styles.editInput}
                 value={newMentor.name}
                 onChangeText={(text) => setNewMentor(prev => ({ ...prev, name: text }))}
                 placeholder="Enter name"
+                returnKeyType="next"
+                blurOnSubmit={false}
               />
-            </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Email *</Text>
+              
+              <Text style={styles.inputLabel}>Email *</Text>
               <TextInput
-                style={styles.input}
+                style={styles.editInput}
                 value={newMentor.email}
                 onChangeText={(text) => setNewMentor(prev => ({ ...prev, email: text }))}
                 placeholder="Enter email"
                 keyboardType="email-address"
+                autoCapitalize="none"
+                returnKeyType="next"
+                blurOnSubmit={false}
               />
-            </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Department *</Text>
+              
+              <Text style={styles.inputLabel}>Department *</Text>
               <TextInput
-                style={styles.input}
+                style={styles.editInput}
                 value={newMentor.department}
                 onChangeText={(text) => setNewMentor(prev => ({ ...prev, department: text }))}
                 placeholder="Enter department"
+                returnKeyType="next"
+                blurOnSubmit={false}
               />
-            </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Biography</Text>
+              
+              <Text style={styles.inputLabel}>Biography</Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[styles.editInput, styles.notesInput]}
                 value={newMentor.biography}
                 onChangeText={(text) => setNewMentor(prev => ({ ...prev, biography: text }))}
                 placeholder="Enter biography"
                 multiline
                 numberOfLines={4}
+                textAlignVertical="top"
+                blurOnSubmit={true}
               />
-            </View>
-            
-            <TouchableOpacity 
-              style={styles.submitButton}
-              onPress={handleAddMentorSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text style={styles.submitButtonText}>Add Mentor</Text>
-              )}
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
+              
+              <TouchableOpacity 
+                style={styles.saveButton}
+                onPress={handleAddMentorSubmit}
+                disabled={isLoading}
+                activeOpacity={0.7}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Add Mentor</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -268,6 +470,17 @@ const ManageMentorsScreen = () => {
               <Ionicons name="document-outline" size={22} color="#333" />
               <Text style={styles.addModalOptionText}>Import from Excel</Text>
             </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.addModalOption}
+              onPress={() => {
+                setAddModalVisible(false);
+                handleImportSampleData();
+              }}
+            >
+              <Ionicons name="people-outline" size={22} color="#333" />
+              <Text style={styles.addModalOptionText}>Import Sample Data</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
@@ -279,18 +492,32 @@ const ManageMentorsScreen = () => {
       animationType="slide"
       transparent={true}
       visible={modalVisible}
-      onRequestClose={() => setModalVisible(false)}
+      onRequestClose={() => {
+        setModalVisible(false);
+        setTimeout(() => setSelectedMentor(null), 100);
+      }}
     >
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{selectedMentor?.name || ''}</Text>
+            <TouchableOpacity 
+              onPress={() => {
+                setModalVisible(false);
+                setTimeout(() => setSelectedMentor(null), 100);
+              }}
+              hitSlop={{top: 20, right: 20, bottom: 20, left: 20}}
+            >
+              <Ionicons name="close" size={24} color="black" />
+            </TouchableOpacity>
+          </View>
+          
           <ScrollView>
             {selectedMentor && (
               <>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>{selectedMentor.name}</Text>
-                  <TouchableOpacity onPress={() => setModalVisible(false)}>
-                    <Ionicons name="close" size={24} color="black" />
-                  </TouchableOpacity>
+                <View style={styles.detailSection}>
+                  <Text style={styles.sectionTitle}>Mentor ID</Text>
+                  <Text style={styles.detailItem}>{selectedMentor.id}</Text>
                 </View>
                 
                 <View style={styles.detailSection}>
@@ -301,7 +528,7 @@ const ManageMentorsScreen = () => {
 
                 <View style={styles.detailSection}>
                   <Text style={styles.sectionTitle}>Biography</Text>
-                  <Text style={styles.detailItem}>{selectedMentor.biography}</Text>
+                  <Text style={styles.detailItem}>{selectedMentor.biography || 'No biography provided'}</Text>
                 </View>
 
                 <View style={styles.detailSection}>
@@ -312,6 +539,22 @@ const ManageMentorsScreen = () => {
                     ))
                   ) : (
                     <Text style={styles.detailItem}>No students assigned</Text>
+                  )}
+                </View>
+
+                <View style={styles.detailSection}>
+                  <Text style={styles.sectionTitle}>Account Information</Text>
+                  <Text style={styles.detailItem}>Role: {selectedMentor.role || 'mentor'}</Text>
+                  <Text style={styles.detailItem}>Status: {selectedMentor.status || 'active'}</Text>
+                  {selectedMentor.createdAt && (
+                    <Text style={styles.detailItem}>
+                      Created: {new Date(selectedMentor.createdAt).toLocaleDateString()}
+                    </Text>
+                  )}
+                  {selectedMentor.updatedAt && (
+                    <Text style={styles.detailItem}>
+                      Last Updated: {new Date(selectedMentor.updatedAt).toLocaleDateString()}
+                    </Text>
                   )}
                 </View>
 
@@ -326,6 +569,7 @@ const ManageMentorsScreen = () => {
                   <TouchableOpacity 
                     style={[styles.actionButton, styles.deleteButton]}
                     onPress={() => handleDeleteMentor(selectedMentor)}
+                    activeOpacity={0.7}
                   >
                     <Ionicons name="trash-outline" size={18} color="white" />
                     <Text style={styles.buttonText}>Delete</Text>
@@ -339,6 +583,100 @@ const ManageMentorsScreen = () => {
     </Modal>
   );
 
+  // Edit Mentor Modal
+  const EditMentorModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={editModalVisible}
+      onRequestClose={() => setEditModalVisible(false)}
+    >
+      <View style={styles.editModalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardAvoidingContainer}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+          enabled={Platform.OS === 'ios'}
+        >
+          <View style={styles.editModalContainer}>
+            <View style={styles.editModalHeader}>
+              <Text style={styles.editModalTitle}>Edit Mentor</Text>
+              <TouchableOpacity 
+                onPress={() => setEditModalVisible(false)}
+                hitSlop={{top: 20, right: 20, bottom: 20, left: 20}}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView 
+              contentContainerStyle={styles.editModalContent}
+              keyboardShouldPersistTaps="always"
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.inputLabel}>Name</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Full Name"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.inputLabel}>Email</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editEmail}
+                onChangeText={setEditEmail}
+                placeholder="Email Address"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.inputLabel}>Department</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editDepartment}
+                onChangeText={setEditDepartment}
+                placeholder="Department"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.inputLabel}>Biography</Text>
+              <TextInput
+                style={[styles.editInput, styles.notesInput]}
+                value={editBiography}
+                onChangeText={setEditBiography}
+                placeholder="Biography"
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                blurOnSubmit={true}
+              />
+              
+              <TouchableOpacity 
+                style={styles.saveButton}
+                onPress={handleSaveMentorChanges}
+                disabled={isLoading}
+                activeOpacity={0.7}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Save Changes</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
+  );
+
   const renderMentorItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.mentorCard}
@@ -346,13 +684,21 @@ const ManageMentorsScreen = () => {
     >
       <View style={styles.mentorInfo}>
         <Text style={styles.mentorName}>{item.name}</Text>
-        <Text style={styles.mentorEmail}>{item.email}</Text>
-        <Text style={styles.mentorDepartment}>{item.department}</Text>
-        <Text style={styles.studentCount}>
-          Students: {item.students.length}
-        </Text>
+        <View style={styles.mentorDetails}>
+          <Text style={styles.mentorEmail}>{item.email}</Text>
+          <Text style={styles.mentorDepartment}>{item.department}</Text>
+          <Text style={styles.mentorId}>ID: {item.id}</Text>
+          <Text style={styles.studentCount}>
+            Students: {item.students ? item.students.length : 0}
+          </Text>
+        </View>
       </View>
-      <Ionicons name="chevron-forward" size={24} color="gray" />
+      <View style={styles.mentorStatus}>
+        <Text style={[styles.statusBadge, item.status === 'active' ? styles.activeBadge : styles.inactiveBadge]}>
+          {item.status || 'active'}
+        </Text>
+        <Ionicons name="chevron-forward" size={24} color="gray" style={styles.chevron} />
+      </View>
     </TouchableOpacity>
   );
 
@@ -372,23 +718,48 @@ const ManageMentorsScreen = () => {
         />
       </View>
 
-      <FlatList
-        data={filteredMentors}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={renderMentorItem}
-        contentContainerStyle={styles.listContainer}
-      />
+      {isLoading && !mentors.length ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#F9A826" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredMentors}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderMentorItem}
+          contentContainerStyle={styles.listContainer}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="people-outline" size={64} color="#ccc" />
+              <Text style={styles.emptyTitle}>No mentors found</Text>
+              <Text style={styles.emptyText}>
+                Mentors you add or import will appear here.
+              </Text>
+            </View>
+          )}
+        />
+      )}
 
       <TouchableOpacity 
         style={styles.addButton}
         onPress={handleAddMentor}
+        disabled={isLoading}
       >
         <Ionicons name="add" size={30} color="white" />
       </TouchableOpacity>
 
+      {/* Loading overlay */}
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#fff" />
+        </View>
+      )}
+
       <MentorDetailModal />
       <AddOptionModal />
       <AddMentorFormModal />
+      <EditMentorModal />
     </SafeAreaView>
   );
 };
@@ -457,12 +828,20 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 4,
   },
+  mentorDetails: {
+    flexDirection: 'column',
+  },
   mentorEmail: {
     fontSize: 14,
     color: '#666',
     marginBottom: 4,
   },
   mentorDepartment: {
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 4,
+  },
+  mentorId: {
     fontSize: 14,
     color: '#888',
     marginBottom: 4,
@@ -620,6 +999,139 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  editModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editModalContainer: {
+    width: '90%',
+    maxHeight: Platform.OS === 'ios' ? '80%' : '90%',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  keyboardAvoidingContainer: {
+    width: '100%',
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  editModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  editModalContent: {
+    padding: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#555',
+    marginBottom: 6,
+  },
+  editInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    padding: 12,
+    marginBottom: 16,
+    fontSize: 16,
+  },
+  notesInput: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  saveButton: {
+    backgroundColor: '#4285F4',
+    borderRadius: 5,
+    padding: 15,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  saveButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  mentorStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusBadge: {
+    padding: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+    marginRight: 8,
+  },
+  activeBadge: {
+    backgroundColor: '#4caf50',
+    color: 'white',
+  },
+  inactiveBadge: {
+    backgroundColor: '#f44336',
+    color: 'white',
+  },
+  chevron: {
+    marginLeft: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
   },
 });
 
