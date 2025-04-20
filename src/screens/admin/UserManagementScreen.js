@@ -524,7 +524,7 @@ const UserManagementScreen = () => {
             >
               <Ionicons name="people-outline" size={22} color="#333" />
               <Text style={styles.modalOptionText}>Import Sample Data</Text>
-            </TouchableOpacity>
+          </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
@@ -628,7 +628,7 @@ const UserManagementScreen = () => {
               <Ionicons name="create-outline" size={22} color="#333" />
               <Text style={styles.modalOptionText}>Edit User</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity 
               style={[styles.modalOption, styles.deleteOption]}
               onPress={handleDeleteUser}
@@ -762,17 +762,17 @@ const UserManagementScreen = () => {
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
       <View style={styles.header}>
         <Text style={styles.screenTitle}>User Management</Text>
-      </View>
+          </View>
 
-      <View style={styles.searchContainer}>
+          <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="gray" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search users..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search users..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
 
       {isLoading && !users.length ? (
         <View style={styles.loadingContainer}>
@@ -806,7 +806,7 @@ const UserManagementScreen = () => {
         disabled={isLoading}
       >
         <Ionicons name="add" size={30} color="white" />
-      </TouchableOpacity>
+              </TouchableOpacity>
 
       <AddOptionModal />
       <UserActionModal />

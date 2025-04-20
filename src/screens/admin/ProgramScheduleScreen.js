@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
 // Import Firebase functions
 import { getDocuments, updateDocument, deleteDocument, addDocument } from '../../utils/firebaseConfig';
@@ -10,6 +11,7 @@ import { getDocuments, updateDocument, deleteDocument, addDocument } from '../..
 import { ACTIVITIES, CLASSES } from '../../utils/demoData';
 
 const ProgramScheduleScreen = () => {
+  const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('activities');
   const [items, setItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -96,11 +98,18 @@ const ProgramScheduleScreen = () => {
 
   // Handle delete item
   const handleDeleteItem = async (item) => {
+    if (!item || !item.id) {
+      console.error('Invalid item or missing ID:', item);
+      Alert.alert('Error', 'Cannot delete this item due to missing information');
+      return;
+    }
+    
     const collectionName = activeTab === 'activities' ? 'activities' : 'classes';
+    const itemName = item.name || 'selected item';
     
     Alert.alert(
       'Delete Item',
-      `Are you sure you want to delete ${item.name}?`,
+      `Are you sure you want to delete ${itemName}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -109,22 +118,40 @@ const ProgramScheduleScreen = () => {
           onPress: async () => {
             try {
               setLoading(true);
-              // If using Firebase
-              if (item.id) {
-                await deleteDocument(collectionName, item.id);
-              }
               
-              // Update local state
-              setItems(prev => prev.filter(i => i.id !== item.id));
-              
-              // Close modal first, then clean up selected item reference
+              // First close the modal
               setModalVisible(false);
+              
+              // Clear the selected item reference immediately after modal closes
               setTimeout(() => {
                 setSelectedItem(null);
-              }, 100);
+              }, 200);
+              
+              // Attempt deletion from Firestore
+              const success = await deleteDocument(collectionName, item.id);
+              
+              if (success) {
+                // Update local state
+                setItems(prev => {
+                  const newItems = prev.filter(i => i.id !== item.id);
+                  return newItems;
+                });
+                
+                // Show success message
+                setTimeout(() => {
+                  Alert.alert(
+                    'Success', 
+                    `${itemName} has been deleted successfully.`,
+                    [{ text: 'OK' }]
+                  );
+                }, 300);
+              } else {
+                // Handle deletion failure
+                Alert.alert('Error', 'Failed to delete item. Please try again.');
+              }
             } catch (error) {
               console.error('Error deleting item:', error);
-              Alert.alert('Error', 'Failed to delete item');
+              Alert.alert('Error', 'Failed to delete item: ' + (error.message || 'Unknown error'));
             } finally {
               setLoading(false);
             }
@@ -136,8 +163,12 @@ const ProgramScheduleScreen = () => {
 
   const handleSelectItem = (item) => {
     if (item) {
-      setSelectedItem({...item}); // Create a copy instead of a reference
-      setModalVisible(true);
+      // Create a deep copy to prevent referential issues
+      const itemCopy = JSON.parse(JSON.stringify(item));
+      setSelectedItem(itemCopy);
+      setTimeout(() => {
+    setModalVisible(true);
+      }, 50); // Small delay to ensure state update completes
     }
   };
 
@@ -244,16 +275,16 @@ const ProgramScheduleScreen = () => {
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <ScrollView>
-            <View style={styles.modalHeader}>
+                <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
                 {activeTab === 'activities' ? 'Add New Activity' : 'Add New Class'}
               </Text>
               <TouchableOpacity onPress={() => setAddFormVisible(false)}>
-                <Ionicons name="close" size={24} color="black" />
-              </TouchableOpacity>
-            </View>
-            
-            {activeTab === 'activities' ? (
+                    <Ionicons name="close" size={24} color="black" />
+                  </TouchableOpacity>
+                </View>
+                
+                {activeTab === 'activities' ? (
               // Activity form
               <>
                 <View style={styles.formGroup}>
@@ -294,8 +325,8 @@ const ProgramScheduleScreen = () => {
                     onChangeText={(text) => setNewActivity(prev => ({ ...prev, location: text }))}
                     placeholder="Enter location"
                   />
-                </View>
-                
+                    </View>
+
                 <View style={styles.formGroup}>
                   <Text style={styles.label}>Description</Text>
                   <TextInput
@@ -306,8 +337,8 @@ const ProgramScheduleScreen = () => {
                     multiline
                     numberOfLines={4}
                   />
-                </View>
-                
+                    </View>
+
                 <TouchableOpacity 
                   style={styles.submitButton}
                   onPress={handleAddActivitySubmit}
@@ -377,8 +408,8 @@ const ProgramScheduleScreen = () => {
                     onChangeText={(text) => setNewClass(prev => ({ ...prev, location: text }))}
                     placeholder="Enter location"
                   />
-                </View>
-                
+                    </View>
+
                 <View style={styles.formGroup}>
                   <Text style={styles.label}>Description</Text>
                   <TextInput
@@ -389,7 +420,7 @@ const ProgramScheduleScreen = () => {
                     multiline
                     numberOfLines={4}
                   />
-                </View>
+                    </View>
                 
                 <TouchableOpacity 
                   style={styles.submitButton}
@@ -455,83 +486,140 @@ const ProgramScheduleScreen = () => {
     </Modal>
   );
 
-  const DetailModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={modalVisible}
-      onRequestClose={() => setModalVisible(false)}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <ScrollView>
-            {selectedItem && (
-              <>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>{selectedItem.name}</Text>
-                  <TouchableOpacity onPress={() => setModalVisible(false)}>
-                    <Ionicons name="close" size={24} color="black" />
-                  </TouchableOpacity>
-                </View>
-                
-                <View style={styles.detailSection}>
-                  <Text style={styles.sectionTitle}>Details</Text>
-                  {activeTab === 'activities' ? (
-                    <>
-                      <Text style={styles.detailItem}>Date: {selectedItem.date}</Text>
-                      <Text style={styles.detailItem}>Time: {selectedItem.time}</Text>
-                      <Text style={styles.detailItem}>Location: {selectedItem.location}</Text>
-                    </>
-                  ) : (
-                    <>
-                      <Text style={styles.detailItem}>Instructor: {selectedItem.instructor}</Text>
-                      <Text style={styles.detailItem}>Schedule: {selectedItem.schedule?.days?.join(', ') || selectedItem.schedule?.date} at {selectedItem.schedule?.time}</Text>
-                      <Text style={styles.detailItem}>Location: {selectedItem.location}</Text>
-                    </>
-                  )}
-                </View>
+  const DetailModal = ({ visible, onClose, item, onEdit, onDelete, loading }) => {
+    // Safe guard against null item references
+    if (!item && visible) {
+      return (
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={visible}
+          onRequestClose={onClose}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Details</Text>
+                <TouchableOpacity onPress={onClose}>
+                  <Ionicons name="close" size={24} color="#333" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>No item to display</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.actionButton, {backgroundColor: '#555', alignSelf: 'center', marginTop: 20}]}
+                onPress={onClose}
+              >
+                <Text style={styles.buttonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      );
+    }
+    
+    return (
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={visible}
+        onRequestClose={() => {
+          if (!loading) {
+            onClose();
+          }
+        }}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {item?.type === 'tour' ? 'Campus Tour' : 'Event'} Details
+              </Text>
+              <TouchableOpacity onPress={onClose} disabled={loading}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="goldenrod" />
+                <Text style={styles.loadingText}>Processing...</Text>
+              </View>
+                ) : (
+                  <>
+                    <View style={styles.detailSection}>
+                  <Text style={styles.sectionTitle}>Name</Text>
+                  <Text style={styles.detailItem}>{item?.name || 'N/A'}</Text>
+                    </View>
 
-                <View style={styles.detailSection}>
-                  <Text style={styles.sectionTitle}>Description</Text>
-                  <Text style={styles.detailItem}>{selectedItem.description}</Text>
-                </View>
+                    <View style={styles.detailSection}>
+                  <Text style={styles.sectionTitle}>Date & Time</Text>
+                  <Text style={styles.detailItem}>
+                    {item?.date || 'N/A'}, {item?.startTime || ''} - {item?.endTime || ''}
+                  </Text>
+                    </View>
 
-                {activeTab === 'activities' && (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.sectionTitle}>Location</Text>
+                  <Text style={styles.detailItem}>{item?.location || 'N/A'}</Text>
+                    </View>
+
+                {item?.type === 'tour' && (
                   <View style={styles.detailSection}>
-                    <Text style={styles.sectionTitle}>Participants</Text>
-                    {selectedItem.participants && selectedItem.participants.length > 0 ? (
-                      selectedItem.participants.map((participantId, index) => (
-                        <Text key={index} style={styles.detailItem}>• Participant ID: {participantId}</Text>
-                      ))
-                    ) : (
-                      <Text style={styles.detailItem}>No participants registered</Text>
-                    )}
+                    <Text style={styles.sectionTitle}>Guide</Text>
+                    <Text style={styles.detailItem}>{item?.guide || 'N/A'}</Text>
                   </View>
                 )}
+                
+                {item?.type === 'event' && (
+                  <>
+                    <View style={styles.detailSection}>
+                      <Text style={styles.sectionTitle}>Description</Text>
+                      <Text style={styles.detailItem}>{item?.description || 'N/A'}</Text>
+                    </View>
+                    <View style={styles.detailSection}>
+                      <Text style={styles.sectionTitle}>Host</Text>
+                      <Text style={styles.detailItem}>{item?.host || 'N/A'}</Text>
+                    </View>
+                  </>
+                )}
 
-                <View style={styles.buttonContainer}>
-                  <TouchableOpacity 
-                    style={[styles.actionButton, styles.editButton]}
-                    onPress={() => handleEditItem(selectedItem)}
-                  >
-                    <Ionicons name="create-outline" size={18} color="white" />
-                    <Text style={styles.buttonText}>Edit</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.actionButton, styles.deleteButton]}
-                    onPress={() => handleDeleteItem(selectedItem)}
-                  >
-                    <Ionicons name="trash-outline" size={18} color="white" />
-                    <Text style={styles.buttonText}>Delete</Text>
-                  </TouchableOpacity>
+                <View style={styles.detailSection}>
+                  <Text style={styles.sectionTitle}>Participants</Text>
+                  <Text style={styles.detailItem}>
+                    {item?.participants?.length || 0} registered
+                  </Text>
                 </View>
               </>
             )}
-          </ScrollView>
-        </View>
+            
+            {!loading && (
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.editButton]}
+                  onPress={() => onEdit(item)}
+                  disabled={loading}
+                >
+                  <Ionicons name="pencil" size={20} color="white" />
+                  <Text style={styles.buttonText}>Edit</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.deleteButton]}
+                  onPress={() => onDelete(item)}
+                  disabled={loading}
+                >
+                  <Ionicons name="trash" size={20} color="white" />
+                  <Text style={styles.buttonText}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
       </View>
     </Modal>
   );
+  };
 
   const renderItem = ({ item }) => (
     <TouchableOpacity 
@@ -563,57 +651,139 @@ const ProgramScheduleScreen = () => {
     </TouchableOpacity>
   );
 
+  // Render empty state when no items are available
+  const renderEmptyState = () => (
+    <View style={styles.emptyStateContainer}>
+      <Ionicons name="calendar-outline" size={64} color="#ccc" />
+      <Text style={styles.emptyStateTitle}>
+        No {activeTab === 'activities' ? 'Activities' : 'Classes'} Found
+      </Text>
+      <Text style={styles.emptyStateDescription}>
+        {searchQuery 
+          ? `No ${activeTab} match your search criteria.` 
+          : `There are no ${activeTab} available. Tap the + button to add one.`}
+      </Text>
+    </View>
+  );
+
+  // Render loading indicator
+  const renderLoadingIndicator = () => (
+    <View style={styles.loadingOverlay}>
+      <ActivityIndicator size="large" color="goldenrod" />
+      <Text style={styles.loadingText}>Loading...</Text>
+    </View>
+  );
+
+  const navigateToRoomAssignment = () => {
+    navigation.navigate('RoomAssignment');
+  };
+
+  const navigateToMentorSchedule = () => {
+    navigation.navigate('MentorSchedule');
+  };
+
+  const navigateToStudentSchedule = () => {
+    navigation.navigate('StudentSchedule');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.screenTitle}>Program Schedule</Text>
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerTitle}>Program Schedule</Text>
+        <View style={styles.headerButtonsContainer}>
+          <TouchableOpacity style={styles.addButton} onPress={handleAddItem}>
+            <Ionicons name="add" size={20} color="#FFF" />
+            <Text style={styles.addButtonText}>Add</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <View style={styles.tabContainer}>
+      <View style={styles.managementButtonsContainer}>
         <TouchableOpacity 
+          style={styles.managementButton}
+          onPress={navigateToRoomAssignment}
+        >
+          <Ionicons name="bed-outline" size={18} color="#FFF" />
+          <Text style={styles.managementButtonText}>Room Assignments</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.managementButton}
+          onPress={navigateToMentorSchedule}
+        >
+          <Ionicons name="time-outline" size={18} color="#FFF" />
+          <Text style={styles.managementButtonText}>Mentor Schedules</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.managementButton}
+          onPress={navigateToStudentSchedule}
+        >
+          <Ionicons name="book-outline" size={18} color="#FFF" />
+          <Text style={styles.managementButtonText}>Student Classes</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity
           style={[styles.tab, activeTab === 'activities' && styles.activeTab]}
           onPress={() => setActiveTab('activities')}
         >
-          <Text style={[styles.tabText, activeTab === 'activities' && styles.activeTabText]}>
-            Activities
-          </Text>
+          <Text style={[styles.tabText, activeTab === 'activities' && styles.activeTabText]}>Activities</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.tab, activeTab === 'classes' && styles.activeTab]}
           onPress={() => setActiveTab('classes')}
         >
-          <Text style={[styles.tabText, activeTab === 'classes' && styles.activeTabText]}>
-            Classes
-          </Text>
+          <Text style={[styles.tabText, activeTab === 'classes' && styles.activeTabText]}>Classes</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="gray" style={styles.searchIcon} />
+        <Ionicons name="search" size={20} color="#AAA" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder={`Search ${activeTab}...`}
+          placeholder="Search..."
+          placeholderTextColor="#AAA"
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
       </View>
 
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContainer}
+      {loading && !modalVisible && !addModalVisible ? (
+        renderLoadingIndicator()
+      ) : (
+        <FlatList
+          data={
+            searchQuery
+              ? items.filter(item =>
+                  item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  (item.location && item.location.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                  (activeTab === 'classes' && item.instructor && item.instructor.toLowerCase().includes(searchQuery.toLowerCase()))
+                )
+              : items
+          }
+          renderItem={renderItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={renderEmptyState()}
+        />
+      )}
+
+      {/* Detail Modal */}
+      <DetailModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        item={selectedItem}
+        onEdit={handleEditItem}
+        onDelete={handleDeleteItem}
+        loading={loading}
       />
 
-      <TouchableOpacity 
-        style={styles.addButton}
-        onPress={handleAddItem}
-      >
-        <Ionicons name="add" size={30} color="white" />
-      </TouchableOpacity>
-
-      <DetailModal />
+      {/* Add Modal */}
       <AddOptionModal />
+
+      {/* Add Form Modal */}
       <AddFormModal />
     </SafeAreaView>
   );
@@ -622,44 +792,62 @@ const ProgramScheduleScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#222',
   },
-  header: {
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e1e1e1',
-  },
-  screenTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  tabContainer: {
+  headerContainer: {
     flexDirection: 'row',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 8,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    padding: 16,
+    backgroundColor: '#1A1A1A',
   },
-  activeTab: {
-    backgroundColor: 'goldenrod',
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#555',
-  },
-  activeTabText: {
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
     color: 'white',
+  },
+  headerButtonsContainer: {
+    flexDirection: 'row',
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9A826',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  addButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
+  managementButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 12,
+    backgroundColor: '#2A2A2A',
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  managementButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#333',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  managementButtonText: {
+    color: 'white',
+    fontSize: 12,
+    marginLeft: 6,
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+    backgroundColor: '#2A2A2A',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -682,7 +870,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 40,
   },
-  listContainer: {
+  listContent: {
     paddingHorizontal: 16,
     paddingBottom: 80,
   },
@@ -733,22 +921,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888',
     marginBottom: 4,
-  },
-  addButton: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'goldenrod',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
   },
   modalContainer: {
     flex: 1,
@@ -882,6 +1054,44 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  loadingContainer: {
+    padding: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: 200,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+    marginTop: 12,
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 16,
+  },
+  emptyStateDescription: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 8,
+    maxWidth: '80%',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
   },
 });
 

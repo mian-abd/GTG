@@ -11,6 +11,9 @@ import UserManagementScreen from '../screens/admin/UserManagementScreen';
 import SettingsScreen from '../screens/admin/SettingsScreen';
 import ProgramScheduleScreen from '../screens/admin/ProgramScheduleScreen';
 import ManageVisitorsScreen from '../screens/admin/ManageVisitorsScreen';
+import RoomAssignmentScreen from '../screens/admin/RoomAssignmentScreen';
+import MentorScheduleScreen from '../screens/admin/MentorScheduleScreen';
+import StudentScheduleScreen from '../screens/admin/StudentScheduleScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -26,6 +29,9 @@ const DashboardStack = () => (
 const ProgramStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="ProgramSchedule" component={ProgramScheduleScreen} />
+    <Stack.Screen name="RoomAssignment" component={RoomAssignmentScreen} />
+    <Stack.Screen name="MentorSchedule" component={MentorScheduleScreen} />
+    <Stack.Screen name="StudentSchedule" component={StudentScheduleScreen} />
   </Stack.Navigator>
 );
 

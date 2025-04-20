@@ -133,6 +133,18 @@ const DashboardScreen = () => {
   const handleViewAllActivities = () => {
     navigation.navigate('ProgramTab');
   };
+  
+  const handleRoomAssignments = () => {
+    navigation.navigate('ProgramTab', { screen: 'RoomAssignment' });
+  };
+  
+  const handleMentorSchedule = () => {
+    navigation.navigate('ProgramTab', { screen: 'MentorSchedule' });
+  };
+  
+  const handleStudentSchedule = () => {
+    navigation.navigate('ProgramTab', { screen: 'StudentSchedule' });
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -196,6 +208,38 @@ const DashboardScreen = () => {
                 onPress={handleViewAllActivities}
               >
                 <Text style={styles.viewAllText}>View All</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          {/* Quick Access Buttons */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Quick Access</Text>
+            </View>
+            <View style={styles.quickAccessContainer}>
+              <TouchableOpacity 
+                style={styles.quickAccessButton}
+                onPress={handleRoomAssignments}
+              >
+                <Ionicons name="bed" size={24} color="#F9A826" />
+                <Text style={styles.quickAccessText}>Room Assignments</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.quickAccessButton}
+                onPress={handleMentorSchedule}
+              >
+                <Ionicons name="time" size={24} color="#F9A826" />
+                <Text style={styles.quickAccessText}>Mentor Schedules</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.quickAccessButton}
+                onPress={handleStudentSchedule}
+              >
+                <Ionicons name="book" size={24} color="#F9A826" />
+                <Text style={styles.quickAccessText}>Student Classes</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -374,6 +418,27 @@ const styles = StyleSheet.create({
     color: '#AAA',
     fontSize: 12,
   },
+  // Quick Access styles
+  quickAccessContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  quickAccessButton: {
+    backgroundColor: '#333',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    width: '30%',
+  },
+  quickAccessText: {
+    color: 'white',
+    marginTop: 8,
+    fontSize: 12,
+    textAlign: 'center',
+  },
   section: {
     backgroundColor: '#2A2A2A',
     marginTop: 16,
@@ -504,10 +569,10 @@ const styles = StyleSheet.create({
   studentName: {
     color: 'white',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: 'bold',
   },
   studentEmail: {
-    color: '#AAA',
+    color: '#CCC',
     fontSize: 12,
   },
   studentStatus: {
@@ -515,10 +580,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 4,
   },
   statusText: {
     color: '#CCC',
@@ -535,12 +600,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   footer: {
-    alignItems: 'center',
     padding: 16,
-    marginTop: 16,
+    alignItems: 'center',
   },
   footerText: {
-    color: '#888',
+    color: '#666',
     fontSize: 12,
   },
 });

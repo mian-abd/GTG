@@ -303,7 +303,7 @@ const MapDirectionsScreen = ({ navigation, route }) => {
     return locationsWithTours.includes(location.name) || 
            Boolean(location.virtualTourUrl);
   };
-
+  
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
       <StatusBar barStyle={theme.mode === 'dark' ? 'light-content' : 'dark-content'} />
@@ -380,7 +380,7 @@ const MapDirectionsScreen = ({ navigation, route }) => {
                       }}
                     >
                       <Ionicons name="copy-outline" size={18} color={theme.colors.text.tertiary} />
-                    </TouchableOpacity>
+            </TouchableOpacity>
                   </View>
                 </View>
               )}
@@ -426,7 +426,7 @@ const MapDirectionsScreen = ({ navigation, route }) => {
                       <Text style={styles.virtualTourText}>Virtual Tour</Text>
                     </>
                   )}
-                </TouchableOpacity>
+            </TouchableOpacity>
               )}
             </View>
             
@@ -475,7 +475,7 @@ const MapDirectionsScreen = ({ navigation, route }) => {
                   ) : (
                     <Ionicons name="chevron-forward" size={20} color={theme.colors.text.tertiary} style={styles.chevron} />
                   )}
-                </TouchableOpacity>
+            </TouchableOpacity>
               )}
             </View>
           </Animated.View>

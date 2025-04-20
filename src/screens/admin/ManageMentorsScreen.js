@@ -685,10 +685,10 @@ const ManageMentorsScreen = () => {
       <View style={styles.mentorInfo}>
         <Text style={styles.mentorName}>{item.name}</Text>
         <View style={styles.mentorDetails}>
-          <Text style={styles.mentorEmail}>{item.email}</Text>
-          <Text style={styles.mentorDepartment}>{item.department}</Text>
+        <Text style={styles.mentorEmail}>{item.email}</Text>
+        <Text style={styles.mentorDepartment}>{item.department}</Text>
           <Text style={styles.mentorId}>ID: {item.id}</Text>
-          <Text style={styles.studentCount}>
+        <Text style={styles.studentCount}>
             Students: {item.students ? item.students.length : 0}
           </Text>
         </View>
@@ -724,11 +724,11 @@ const ManageMentorsScreen = () => {
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       ) : (
-        <FlatList
-          data={filteredMentors}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderMentorItem}
-          contentContainerStyle={styles.listContainer}
+      <FlatList
+        data={filteredMentors}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={renderMentorItem}
+        contentContainerStyle={styles.listContainer}
           ListEmptyComponent={() => (
             <View style={styles.emptyContainer}>
               <Ionicons name="people-outline" size={64} color="#ccc" />
