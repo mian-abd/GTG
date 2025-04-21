@@ -5,8 +5,29 @@ import {
   setDoc, 
   getDoc, 
   updateDoc, 
+  getDocs,
+  query,
+  where,
   serverTimestamp 
 } from 'firebase/firestore';
+
+/**
+ * Generate a unique ID for students, similar to Firestore auto-generated IDs
+ * @returns {string} A unique student ID
+ */
+export const generateUniqueStudentId = () => {
+  // Character set similar to Firestore IDs
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  // Length similar to Firestore IDs (20 characters)
+  const idLength = 20;
+  let id = '';
+  
+  for (let i = 0; i < idLength; i++) {
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  
+  return id;
+};
 
 /**
  * Generate a unique token for user verification
@@ -19,94 +40,221 @@ export const generateUniqueToken = () => {
 };
 
 /**
- * Add a new user to the database with their email and token
- * @param {string} email - User's email address
+ * Find a student by email
+ * @param {string} email - Student's email address
+ * @returns {Promise<object|null>} Student object or null if not found
+ */
+export const findStudentByEmail = async (email) => {
+  try {
+    const studentsRef = collection(db, 'students');
+    const q = query(studentsRef, where('email', '==', email));
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      return null;
+    }
+    
+    // Return the first matching student
+    const studentDoc = querySnapshot.docs[0];
+    return {
+      id: studentDoc.id,
+      ...studentDoc.data()
+    };
+  } catch (error) {
+    console.error('Error finding student by email:', error);
+    return null;
+  }
+};
+
+/**
+ * Find a student by verification token
+ * @param {string} token - Verification token
+ * @returns {Promise<object|null>} Student object or null if not found
+ */
+export const findStudentByToken = async (token) => {
+  try {
+    const studentsRef = collection(db, 'students');
+    const q = query(studentsRef, where('verificationToken', '==', token));
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      console.log('No student found with token:', token);
+      return null;
+    }
+    
+    // Return the first matching student
+    const studentDoc = querySnapshot.docs[0];
+    console.log('Found student with token:', token, studentDoc.id);
+    return {
+      id: studentDoc.id,
+      ...studentDoc.data()
+    };
+  } catch (error) {
+    console.error('Error finding student by token:', error);
+    return null;
+  }
+};
+
+/**
+ * Add a new student to the database with their email and token
+ * @param {string} email - Student's email address
  * @param {string} token - Verification token
  * @returns {Promise<object>} Result of the operation
  */
 export const addUserToDatabase = async (email, token) => {
   try {
-    console.log('Adding user to database:', email);
-    const userRef = doc(db, 'users', email);
+    console.log('Processing verification for student:', email);
     
-    // Check if user already exists
-    const docSnap = await getDoc(userRef);
+    // Check if student already exists
+    const existingStudent = await findStudentByEmail(email);
     
     // Token expiration time (30 minutes from now)
     const tokenExpires = new Date();
     tokenExpires.setMinutes(tokenExpires.getMinutes() + 30);
     
-    if (docSnap.exists()) {
-      // Update existing user with new token
-      await updateDoc(userRef, {
+    if (existingStudent) {
+      // Update existing student with new token
+      const studentRef = doc(db, 'students', existingStudent.id);
+      await updateDoc(studentRef, {
         verificationToken: token,
         tokenCreatedAt: serverTimestamp(),
         tokenExpires: tokenExpires,
         updatedAt: serverTimestamp()
       });
-      console.log('User updated with new token');
-      return { success: true, isNewUser: false, message: 'User updated with new token' };
+      console.log('Student updated with new token');
+      return { 
+        success: true, 
+        isNewUser: false, 
+        message: 'Student updated with new token',
+        studentId: existingStudent.id
+      };
     } else {
-      // Create new user with token
-      await setDoc(userRef, {
+      // Create new student with token and unique ID
+      const studentId = generateUniqueStudentId();
+      const studentRef = doc(db, 'students', studentId);
+      
+      await setDoc(studentRef, {
+        studentId: studentId,
         email,
+        name: '', // Can be updated later
+        role: 'student',
+        status: 'pending',
         verificationToken: token,
         tokenCreatedAt: serverTimestamp(),
         tokenExpires: tokenExpires,
         isVerified: false,
         createdAt: serverTimestamp()
       });
-      console.log('New user added to database');
-      return { success: true, isNewUser: true, message: 'New user added to database' };
+      
+      console.log('New student added to database with ID:', studentId);
+      return { 
+        success: true, 
+        isNewUser: true, 
+        message: 'New student added to database',
+        studentId: studentId
+      };
     }
   } catch (error) {
-    console.error('Error adding user to database:', error);
+    console.error('Error adding student to database:', error);
     return { success: false, error: error.message };
   }
 };
 
 /**
- * Verify a user's token
- * @param {string} email - User's email address
+ * Verify a token and update the associated student record
+ * @param {string} token - Verification token to check
+ * @returns {Promise<object>} Result of the verification
+ */
+export const verifyTokenOnly = async (token) => {
+  try {
+    console.log('Verifying token:', token);
+    
+    // Find student by token
+    const student = await findStudentByToken(token);
+    
+    if (!student) {
+      return { success: false, error: 'Invalid verification code' };
+    }
+    
+    // Check if token is expired
+    const tokenExpires = student.tokenExpires.toDate ? 
+      student.tokenExpires.toDate() : student.tokenExpires;
+      
+    if (tokenExpires < new Date()) {
+      return { success: false, error: 'Verification code has expired' };
+    }
+    
+    // Token is valid, mark student as verified but keep the token
+    const studentRef = doc(db, 'students', student.id);
+    await updateDoc(studentRef, {
+      isVerified: true,
+      status: 'active',
+      // Don't clear the token: verificationToken: null,
+      // Instead, just record when it was used for login
+      lastLoginAt: serverTimestamp()
+    });
+    
+    console.log('Student verified successfully, token preserved');
+    return { 
+      success: true, 
+      message: 'Verification successful',
+      studentId: student.id,
+      email: student.email,
+      token: student.verificationToken
+    };
+  } catch (error) {
+    console.error('Error verifying token:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Verify a student's token
+ * @param {string} email - Student's email address
  * @param {string} token - Verification token to check
  * @returns {Promise<object>} Result of the verification
  */
 export const verifyUserToken = async (email, token) => {
   try {
-    console.log('Verifying token for:', email);
-    const userRef = doc(db, 'users', email);
+    console.log('Verifying token for student:', email);
     
-    const docSnap = await getDoc(userRef);
-    if (!docSnap.exists()) {
-      return { success: false, error: 'User not found' };
+    // Find student by email
+    const student = await findStudentByEmail(email);
+    
+    if (!student) {
+      return { success: false, error: 'Student not found' };
     }
     
-    const userData = docSnap.data();
-    
     // Check if token matches
-    if (userData.verificationToken !== token) {
+    if (student.verificationToken !== token) {
       return { success: false, error: 'Invalid token' };
     }
     
     // Check if token is expired
-    const tokenExpires = userData.tokenExpires.toDate ? 
-      userData.tokenExpires.toDate() : userData.tokenExpires;
+    const tokenExpires = student.tokenExpires.toDate ? 
+      student.tokenExpires.toDate() : student.tokenExpires;
       
     if (tokenExpires < new Date()) {
       return { success: false, error: 'Token has expired' };
     }
     
-    // Token is valid, mark user as verified
-    await updateDoc(userRef, {
+    // Token is valid, mark student as verified and update status
+    const studentRef = doc(db, 'students', student.id);
+    await updateDoc(studentRef, {
       isVerified: true,
+      status: 'active',
       verificationToken: null, // Clear the token after use
       verifiedAt: serverTimestamp()
     });
     
-    console.log('User verified successfully');
-    return { success: true, message: 'User verified successfully' };
+    console.log('Student verified successfully');
+    return { 
+      success: true, 
+      message: 'Student verified successfully',
+      studentId: student.id
+    };
   } catch (error) {
-    console.error('Error verifying user token:', error);
+    console.error('Error verifying student token:', error);
     return { success: false, error: error.message };
   }
 }; 

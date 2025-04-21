@@ -4,6 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 // Auth Screens
 import SendGridTestScreen from '../screens/auth/SendGridTestScreen';
 import VerificationScreen from '../screens/auth/VerificationScreen';
+import VisitorLoginScreen from '../screens/auth/VisitorLoginScreen';
 
 // Main Navigation
 import VisitorNavigator from './VisitorNavigator';
@@ -12,8 +13,20 @@ const Stack = createStackNavigator();
 
 const AppNavigator = () => {
   return (
-    <Stack.Navigator initialRouteName="SendGridTest">
+    <Stack.Navigator initialRouteName="VisitorLogin">
       {/* Auth Screens */}
+      <Stack.Screen 
+        name="VisitorLogin" 
+        component={VisitorLoginScreen} 
+        options={{ 
+          title: 'Visitor Login',
+          headerStyle: {
+            backgroundColor: '#1A1A1A',
+          },
+          headerTintColor: '#fff',
+          headerShown: false,
+        }}
+      />
       <Stack.Screen 
         name="SendGridTest" 
         component={SendGridTestScreen} 

@@ -16,7 +16,11 @@ const RoleSelectionScreen = () => {
   const navigation = useNavigation();
 
   const handleRoleSelect = (role) => {
-    navigation.navigate('Login', { role });
+    if (role === 'visitor') {
+      navigation.navigate('VisitorLogin');
+    } else {
+      navigation.navigate('Login', { role });
+    }
   };
 
   return (
