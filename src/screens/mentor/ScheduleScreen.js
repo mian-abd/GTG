@@ -7,106 +7,125 @@ import {
   TouchableOpacity, 
   TextInput, 
   SafeAreaView,
-  StatusBar
+  StatusBar,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 
-// Import demo data and helper functions
-import { ACTIVITIES, CLASSES, MENTORS } from '../../utils/demoData';
+// Import Firebase functions
+import { getDocuments, queryDocuments } from '../../utils/firebaseConfig';
+
+// Import helper functions
 import { formatDate, formatTime } from '../../utils/helpers';
-
-// Using first mentor as the current mentor
-const currentMentor = MENTORS[0];
 
 const ScheduleScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  const { userData } = useAuth();
   
   // State for tabs and filtering
   const [activeTab, setActiveTab] = useState('today');
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(false);
   
-  // Get classes taught by the current mentor
-  const mentorClasses = CLASSES.filter(cls => 
-    cls.instructor === currentMentor.name
-  );
-  
-  // Get activities the mentor is participating in
-  const mentorActivities = ACTIVITIES.filter(activity => 
-    activity.participants && 
-    Array.isArray(activity.participants) && 
-    activity.participants.includes(currentMentor.id)
-  );
-  
-  // Mock student meeting data (in a real app, this would come from a database)
-  const studentMeetings = [
-    {
-      id: 'meeting-1',
-      type: 'meeting',
-      name: 'Meeting with Sarah Johnson',
-      date: '2023-06-15',
-      time: '14:00',
-      location: 'Office 302',
-      student: 'Sarah Johnson',
-      description: 'Weekly progress check-in',
-    },
-    {
-      id: 'meeting-2',
-      type: 'meeting',
-      name: 'Meeting with Michael Chen',
-      date: '2023-06-16',
-      time: '10:30',
-      location: 'Student Center',
-      student: 'Michael Chen',
-      description: 'Project review and guidance',
-    },
-    {
-      id: 'meeting-3',
-      type: 'meeting',
-      name: 'Meeting with Emma Wilson',
-      date: '2023-06-17',
-      time: '15:45',
-      location: 'Office 302',
-      student: 'Emma Wilson',
-      description: 'Academic planning session',
-    },
-  ];
-  
-  // Combined schedule items (classes, activities, and meetings)
+  // State for schedule items
+  const [scheduleItems, setScheduleItems] = useState([]);
   const [filteredSchedule, setFilteredSchedule] = useState([]);
+  
+  // Use mentor data from auth
+  const currentMentor = userData ? { 
+    id: userData.uid || userData.mentorId, 
+    name: userData.displayName || userData.email 
+  } : { id: null, name: null };
+  
+  // Fetch data when component mounts or mentor changes
+  useEffect(() => {
+    fetchScheduleData();
+  }, [currentMentor.id]);
+  
+  const fetchScheduleData = async () => {
+    setLoading(true);
+    try {
+      console.log('Fetching schedule data for mentor:', currentMentor.id || 'all');
+      
+      let fetchedSchedules = [];
+      
+      if (currentMentor.id) {
+        // Query schedules related to this mentor
+        fetchedSchedules = await queryDocuments('schedules', [
+          ['mentorId', '==', currentMentor.id],
+        ]);
+        
+        // Also get other events where instructor or participants include this mentor
+        const instructorEvents = await queryDocuments('schedules', [
+          ['instructor', '==', currentMentor.name],
+        ]);
+        
+        // Add any events not already included
+        instructorEvents.forEach(event => {
+          if (!fetchedSchedules.some(e => e.id === event.id)) {
+            fetchedSchedules.push(event);
+          }
+        });
+      } else {
+        // Fallback to get all schedules if no mentor ID
+        fetchedSchedules = await getDocuments('schedules');
+      }
+      
+      console.log(`Fetched ${fetchedSchedules.length} schedule items`);
+      
+      if (fetchedSchedules && fetchedSchedules.length > 0) {
+        setScheduleItems(fetchedSchedules);
+      } else {
+        // No data found
+        console.log('No schedule items found in the database');
+        setScheduleItems([]);
+      }
+    } catch (error) {
+      console.error('Error fetching schedule data:', error);
+      // Set empty array on error
+      setScheduleItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Process schedule items for display
+  const processScheduleItem = (item) => {
+    // Determine the item type based on its properties
+    let type = item.type || 'event';
+    if (!type) {
+      if (item.instructor === currentMentor.name) type = 'class';
+      else if (item.student) type = 'meeting';
+      else type = 'activity';
+    }
+    
+    return {
+      id: item.id || `schedule-${Math.random().toString(36).substring(2, 9)}`,
+      name: item.name || item.title || 'Untitled Event',
+      type: type,
+      time: item.time || item.schedule?.time || '09:00',
+      date: item.date || item.schedule?.date || new Date().toISOString().split('T')[0],
+      location: item.location || item.place || 'Unknown Location',
+      student: item.student || null,
+      description: item.description || item.details || '',
+    };
+  };
   
   // Function to filter schedule based on active tab and search query
   useEffect(() => {
-    // Convert classes and activities to a common schedule item format
-    const classItems = mentorClasses.map(cls => ({
-      id: `class-${cls.id}`,
-      name: cls.name,
-      type: 'class',
-      time: cls.schedule.time,
-      date: cls.schedule.date,
-      location: cls.location,
-      description: cls.description,
-    }));
-    
-    const activityItems = mentorActivities.map(activity => ({
-      id: `activity-${activity.id}`,
-      name: activity.name,
-      type: 'activity',
-      time: activity.time,
-      date: activity.date,
-      location: activity.location,
-      description: activity.description,
-    }));
-    
-    // Combine all types of items
-    let combinedSchedule = [...classItems, ...activityItems, ...studentMeetings];
+    // Process all schedule items
+    const processedItems = scheduleItems.map(processScheduleItem);
     
     // Filter based on search query
+    let filtered = processedItems;
     if (searchQuery) {
-      combinedSchedule = combinedSchedule.filter(item => 
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.student && item.student.toLowerCase().includes(searchQuery.toLowerCase()))
+      filtered = filtered.filter(item => 
+        (item.name && item.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (item.student && item.student.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (item.location && item.location.toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
     
@@ -114,21 +133,21 @@ const ScheduleScreen = ({ navigation }) => {
     const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
     
     if (activeTab === 'today') {
-      combinedSchedule = combinedSchedule.filter(item => item.date === today);
+      filtered = filtered.filter(item => item.date === today);
     } else if (activeTab === 'upcoming') {
-      combinedSchedule = combinedSchedule.filter(item => item.date >= today);
+      filtered = filtered.filter(item => item.date >= today);
     }
     
     // Sort by date and time
-    combinedSchedule.sort((a, b) => {
+    filtered.sort((a, b) => {
       if (a.date === b.date) {
-        return a.time.localeCompare(b.time);
+        return (a.time || '').localeCompare(b.time || '');
       }
-      return a.date.localeCompare(b.date);
+      return (a.date || '').localeCompare(b.date || '');
     });
     
-    setFilteredSchedule(combinedSchedule);
-  }, [activeTab, searchQuery]);
+    setFilteredSchedule(filtered);
+  }, [activeTab, searchQuery, scheduleItems]);
   
   // Render each schedule item
   const renderScheduleItem = ({ item }) => {
@@ -165,13 +184,7 @@ const ScheduleScreen = ({ navigation }) => {
         }]}
         onPress={() => {
           // Navigate to details screen based on type
-          if (item.type === 'class') {
-            console.log('Navigate to class details', item.id);
-          } else if (item.type === 'activity') {
-            console.log('Navigate to activity details', item.id);
-          } else if (item.type === 'meeting') {
-            console.log('Navigate to meeting details', item.id);
-          }
+          console.log('View schedule details', item.id);
         }}
       >
         <View style={[styles.itemTypeIndicator, { backgroundColor: typeColor }]} />
@@ -228,6 +241,14 @@ const ScheduleScreen = ({ navigation }) => {
     </View>
   );
 
+  // Render loading indicator
+  const renderLoading = () => (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color={theme.colors.primary} />
+      <Text style={[styles.loadingText, { color: theme.colors.text.primary }]}>Loading schedule...</Text>
+    </View>
+  );
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
       <StatusBar barStyle={theme.colors.statusBar} backgroundColor={theme.colors.background.primary} />
@@ -238,10 +259,10 @@ const ScheduleScreen = ({ navigation }) => {
         <Text style={[styles.screenTitle, { color: theme.colors.text.primary }]}>My Schedule</Text>
         
         <TouchableOpacity 
-          style={styles.addButton}
-          onPress={() => console.log('Add new schedule item')}
+          style={styles.refreshButton}
+          onPress={fetchScheduleData}
         >
-          <Ionicons name="add" size={24} color={theme.colors.primary} />
+          <Ionicons name="refresh" size={24} color={theme.colors.primary} />
         </TouchableOpacity>
       </View>
       
@@ -308,14 +329,18 @@ const ScheduleScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
       
-      <FlatList
-        data={filteredSchedule}
-        renderItem={renderScheduleItem}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.scheduleList}
-        ListEmptyComponent={renderEmptyState}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        renderLoading()
+      ) : (
+        <FlatList
+          data={filteredSchedule}
+          renderItem={renderScheduleItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.scheduleList}
+          ListEmptyComponent={renderEmptyState}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -335,7 +360,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
   },
-  addButton: {
+  refreshButton: {
     padding: 8,
   },
   searchContainer: {
@@ -444,6 +469,16 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 14,
     textAlign: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 
