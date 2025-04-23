@@ -44,7 +44,7 @@ const VerificationScreen = ({ route, navigation }) => {
       if (result.success) {
         Alert.alert(
           'Success', 
-          'Email verified successfully!',
+          `Email verified successfully!\nStudent ID: ${result.studentId}`,
           [
             { 
               text: 'OK', 
@@ -131,6 +131,7 @@ const VerificationScreen = ({ route, navigation }) => {
             <Text style={styles.infoText}>
               A verification code was sent to your email address. 
               Please check your inbox and enter the code above.
+              Once verified, you'll be registered as a student in our system.
             </Text>
           </View>
         </View>
