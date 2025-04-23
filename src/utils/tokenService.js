@@ -108,9 +108,9 @@ export const addUserToDatabase = async (email, token) => {
     // Check if student already exists
     const existingStudent = await findStudentByEmail(email);
     
-    // Token expiration time (30 minutes from now)
+    // Set token to never expire (100 years in the future)
     const tokenExpires = new Date();
-    tokenExpires.setMinutes(tokenExpires.getMinutes() + 30);
+    tokenExpires.setFullYear(tokenExpires.getFullYear() + 100);
     
     if (existingStudent) {
       // Update existing student with new token
@@ -176,13 +176,8 @@ export const verifyTokenOnly = async (token) => {
       return { success: false, error: 'Invalid verification code' };
     }
     
-    // Check if token is expired
-    const tokenExpires = student.tokenExpires.toDate ? 
-      student.tokenExpires.toDate() : student.tokenExpires;
-      
-    if (tokenExpires < new Date()) {
-      return { success: false, error: 'Verification code has expired' };
-    }
+    // We're no longer checking if the token is expired
+    // Tokens are permanent login credentials
     
     // Token is valid, mark student as verified but keep the token
     const studentRef = doc(db, 'students', student.id);

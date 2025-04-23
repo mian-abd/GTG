@@ -86,11 +86,11 @@ const SendGridTestScreen = () => {
       // Generate a unique token
       const token = generateUniqueToken();
       
-      // Add user to database
+      // Add user to database as a student
       const dbResult = await addUserToDatabase(recipientEmail, token);
       
       if (!dbResult.success) {
-        Alert.alert('Error', `Failed to register user: ${dbResult.error}`);
+        Alert.alert('Error', `Failed to register student: ${dbResult.error}`);
         return;
       }
       
@@ -100,7 +100,7 @@ const SendGridTestScreen = () => {
       if (emailResult.success) {
         Alert.alert(
           'Success', 
-          `Verification email sent to ${recipientEmail}. ${dbResult.isNewUser ? 'New user registered.' : 'Existing user updated.'}`
+          `Verification email sent to ${recipientEmail}.\n\n${dbResult.isNewUser ? 'New student registered' : 'Existing student updated'} with ID: ${dbResult.studentId}`
         );
       } else {
         Alert.alert('Error', `Failed to send verification email: ${emailResult.error}`);
@@ -182,7 +182,7 @@ const SendGridTestScreen = () => {
           </TouchableOpacity>
           
           <Text style={styles.infoText}>
-            The verification email includes a unique token and adds the user to the database.
+            The verification email includes a unique token and adds the student to the database with a unique ID.
           </Text>
         </View>
       </ScrollView>

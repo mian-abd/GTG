@@ -1,68 +1,89 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, SafeAreaView, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, SafeAreaView, StatusBar, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 
-// Import demo data and helper functions
-import { ACTIVITIES, CLASSES, STUDENTS } from '../../utils/demoData';
+// Import Firebase functions
+import { getDocuments, queryDocuments } from '../../utils/firebaseConfig';
+
+// Import helper functions
 import { formatDate, formatTime } from '../../utils/helpers';
-
-// Using first student as the current visitor
-const currentStudent = STUDENTS[0];
 
 const ScheduleScreen = ({ navigation }) => {
   const { theme } = useTheme();
+  const { userData } = useAuth();
   
   // State for tabs and filtering
   const [activeTab, setActiveTab] = useState('today');
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(false);
   
-  // Get classes for the current student
-  const studentClasses = CLASSES.filter(cls => 
-    currentStudent.classSchedule.includes(cls.id)
-  );
-  
-  // Get activities the student is participating in
-  const studentActivities = ACTIVITIES.filter(activity => 
-    activity.participants.includes(currentStudent.id)
-  );
-  
-  // Combined schedule items (classes and activities)
+  // State for schedule items
+  const [scheduleItems, setScheduleItems] = useState([]);
   const [filteredSchedule, setFilteredSchedule] = useState([]);
+  
+  // Fetch data when component mounts
+  useEffect(() => {
+    fetchScheduleData();
+  }, []);
+  
+  const fetchScheduleData = async () => {
+    setLoading(true);
+    try {
+      console.log('Fetching schedule data for student:', userData?.studentId || 'all');
+      
+      // Fetch events from the 'schedules' collection
+      const fetchedSchedules = await getDocuments('schedules');
+      
+      console.log(`Fetched ${fetchedSchedules.length} schedule items`);
+      
+      if (fetchedSchedules && fetchedSchedules.length > 0) {
+        setScheduleItems(fetchedSchedules);
+      } else {
+        // No data found
+        console.log('No schedule items found in the database');
+        setScheduleItems([]);
+      }
+    } catch (error) {
+      console.error('Error fetching schedule data:', error);
+      // Set empty array on error
+      setScheduleItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Process schedule items for display
+  const processScheduleItem = (item) => {
+    // Determine the item type based on its properties or default to 'event'
+    const type = item.type || (item.instructor ? 'class' : 'activity');
+    
+    return {
+      id: item.id || `schedule-${Math.random().toString(36).substring(2, 9)}`,
+      name: item.name || item.title || 'Untitled Event',
+      type: type,
+      time: item.time || item.schedule?.time || '09:00',
+      date: item.date || item.schedule?.date || new Date().toISOString().split('T')[0],
+      location: item.location || item.place || 'Unknown Location',
+      instructor: item.instructor || null,
+      description: item.description || item.details || '',
+    };
+  };
   
   // Function to filter schedule based on active tab and search query
   useEffect(() => {
-    // Convert classes and activities to a common schedule item format
-    const classItems = studentClasses.map(cls => ({
-      id: `class-${cls.id}`,
-      name: cls.name,
-      type: 'class',
-      time: cls.schedule.time,
-      date: cls.schedule.date,
-      location: cls.location,
-      instructor: cls.instructor,
-      description: cls.description,
-    }));
-    
-    const activityItems = studentActivities.map(activity => ({
-      id: `activity-${activity.id}`,
-      name: activity.name,
-      type: 'activity',
-      time: activity.time,
-      date: activity.date,
-      location: activity.location,
-      description: activity.description,
-    }));
-    
-    // Combine both types of items
-    let combinedSchedule = [...classItems, ...activityItems];
+    // Process all schedule items
+    const processedItems = scheduleItems.map(processScheduleItem);
     
     // Filter based on search query
+    let filtered = processedItems;
     if (searchQuery) {
-      combinedSchedule = combinedSchedule.filter(item => 
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.instructor && item.instructor.toLowerCase().includes(searchQuery.toLowerCase()))
+      filtered = filtered.filter(item => 
+        (item.name && item.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (item.instructor && item.instructor.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (item.location && item.location.toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
     
@@ -70,21 +91,21 @@ const ScheduleScreen = ({ navigation }) => {
     const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
     
     if (activeTab === 'today') {
-      combinedSchedule = combinedSchedule.filter(item => item.date === today);
+      filtered = filtered.filter(item => item.date === today);
     } else if (activeTab === 'upcoming') {
-      combinedSchedule = combinedSchedule.filter(item => item.date >= today);
+      filtered = filtered.filter(item => item.date >= today);
     }
     
     // Sort by date and time
-    combinedSchedule.sort((a, b) => {
+    filtered.sort((a, b) => {
       if (a.date === b.date) {
-        return a.time.localeCompare(b.time);
+        return (a.time || '').localeCompare(b.time || '');
       }
-      return a.date.localeCompare(b.date);
+      return (a.date || '').localeCompare(b.date || '');
     });
     
-    setFilteredSchedule(combinedSchedule);
-  }, [activeTab, searchQuery]);
+    setFilteredSchedule(filtered);
+  }, [activeTab, searchQuery, scheduleItems]);
   
   // Render each schedule item
   const renderScheduleItem = ({ item }) => {
@@ -98,13 +119,7 @@ const ScheduleScreen = ({ navigation }) => {
         }]}
         onPress={() => {
           // Navigate to details screen based on type
-          if (isClass) {
-            // Navigate to class details
-            console.log('Navigate to class details', item.id);
-          } else {
-            // Navigate to activity details
-            console.log('Navigate to activity details', item.id);
-          }
+          console.log('View schedule details', item.id);
         }}
       >
         <View style={[styles.itemTypeIndicator, { backgroundColor: isClass ? theme.colors.tertiary : theme.colors.primary }]} />
@@ -138,7 +153,7 @@ const ScheduleScreen = ({ navigation }) => {
               <Text style={[styles.detailText, { color: theme.colors.text.secondary }]}>{item.location}</Text>
             </View>
             
-            {isClass && (
+            {item.instructor && (
               <View style={styles.detailRow}>
                 <Ionicons name="person-outline" size={16} color={theme.colors.text.secondary} style={styles.detailIcon} />
                 <Text style={[styles.detailText, { color: theme.colors.text.secondary }]}>{item.instructor}</Text>
@@ -165,6 +180,14 @@ const ScheduleScreen = ({ navigation }) => {
     </View>
   );
 
+  // Render loading indicator
+  const renderLoading = () => (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color={theme.colors.primary} />
+      <Text style={[styles.loadingText, { color: theme.colors.text.primary }]}>Loading schedule...</Text>
+    </View>
+  );
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
       <StatusBar barStyle={theme.colors.statusBar} backgroundColor={theme.colors.background.primary} />
@@ -173,6 +196,13 @@ const ScheduleScreen = ({ navigation }) => {
         borderBottomColor: theme.colors.border 
       }]}>
         <Text style={[styles.screenTitle, { color: theme.colors.text.primary }]}>My Schedule</Text>
+        
+        <TouchableOpacity 
+          style={styles.refreshButton}
+          onPress={fetchScheduleData}
+        >
+          <Ionicons name="refresh" size={24} color={theme.colors.primary} />
+        </TouchableOpacity>
       </View>
       
       <View style={[styles.searchContainer, { 
@@ -238,14 +268,18 @@ const ScheduleScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
       
-      <FlatList
-        data={filteredSchedule}
-        renderItem={renderScheduleItem}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.scheduleList}
-        ListEmptyComponent={renderEmptyState}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        renderLoading()
+      ) : (
+        <FlatList
+          data={filteredSchedule}
+          renderItem={renderScheduleItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.scheduleList}
+          ListEmptyComponent={renderEmptyState}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -255,12 +289,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
   },
   screenTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
+  },
+  refreshButton: {
+    padding: 8,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -268,6 +309,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 12,
     paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
   },
@@ -276,8 +318,8 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    height: 40,
     fontSize: 16,
+    height: 40,
   },
   clearButton: {
     padding: 4,
@@ -285,36 +327,37 @@ const styles = StyleSheet.create({
   tabContainer: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    marginBottom: 8,
+    marginBottom: 16,
   },
   tab: {
     flex: 1,
-    alignItems: 'center',
     paddingVertical: 12,
+    alignItems: 'center',
   },
   activeTab: {
     borderBottomWidth: 2,
   },
   tabText: {
+    fontSize: 16,
     fontWeight: '500',
   },
   scheduleList: {
-    padding: 16,
+    paddingHorizontal: 16,
     paddingBottom: 24,
   },
   scheduleItem: {
     flexDirection: 'row',
     borderRadius: 8,
     marginBottom: 12,
-    overflow: 'hidden',
     borderWidth: 1,
+    overflow: 'hidden',
   },
   itemTypeIndicator: {
-    width: 4,
+    width: 6,
   },
   itemContent: {
     flex: 1,
-    padding: 12,
+    padding: 16,
   },
   itemHeader: {
     flexDirection: 'row',
@@ -326,16 +369,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     flex: 1,
+    marginRight: 8,
   },
   itemTypeBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
-    marginLeft: 8,
+    borderRadius: 16,
   },
   itemTypeText: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   itemDetails: {
     marginTop: 4,
@@ -347,8 +390,6 @@ const styles = StyleSheet.create({
   },
   detailIcon: {
     marginRight: 6,
-    width: 16,
-    alignItems: 'center',
   },
   detailText: {
     fontSize: 14,
@@ -356,8 +397,7 @@ const styles = StyleSheet.create({
   emptyStateContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    marginTop: 40,
+    paddingTop: 60,
   },
   emptyStateTitle: {
     fontSize: 18,
@@ -368,7 +408,18 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 14,
     textAlign: 'center',
+    paddingHorizontal: 40,
   },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+  }
 });
 
 export default ScheduleScreen; 
