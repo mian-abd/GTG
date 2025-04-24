@@ -4,7 +4,6 @@
 // IMPORTANT: Secure API key handling
 // For security reasons, use environment variables or a secure storage solution
 // DO NOT commit your API key to version control
-// The key is now loaded from a function to keep it out of the source code
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -27,16 +26,12 @@ const getSendGridApiKey = async () => {
       return storedKey;
     }
     
-    // If no stored key, use the provided key and store it
-    // Note: In production, you should use a more secure method
-    const defaultKey = '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';
-    await AsyncStorage.setItem('SENDGRID_API_KEY', defaultKey);
-    API_KEY_CACHE = defaultKey;
-    return defaultKey;
+    // If no stored key, return empty string and warn user
+    console.warn('No SendGrid API key found. Please set it using updateSendGridApiKey() function');
+    return '';
   } catch (error) {
     console.error('Error getting SendGrid API key:', error);
-    // Fallback to default in case of error
-    return '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';
+    return '';
   }
 };
 
@@ -75,6 +70,14 @@ export const sendEmail = async (to, subject, text, html) => {
     
     // Get the API key (asynchronously)
     const SENDGRID_API_KEY = await getSendGridApiKey();
+    
+    // Check if API key exists
+    if (!SENDGRID_API_KEY) {
+      return { 
+        success: false, 
+        error: 'SendGrid API key not set. Please set it using updateSendGridApiKey() function' 
+      };
+    }
     
     const payload = {
       personalizations: [

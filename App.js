@@ -8,6 +8,9 @@ import 'react-native-gesture-handler';
 // Import Schedule Service
 import { initializeSchedule } from './src/utils/scheduleService';
 
+// Import API key setup utility
+import { setupSendGridApiKey } from './src/utils/setupApiKeys';
+
 // Context
 import { AuthProvider } from './src/context/AuthContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
@@ -38,6 +41,12 @@ export default function App() {
         // Initialize the default schedule
         await initializeSchedule();
         console.log('Schedule initialization completed');
+        
+        // Setup API keys (in production, get from environment variables or secure storage)
+        // Don't use hardcoded values - this is just a placeholder comment
+        // For production: use a proper configuration or environment variables system
+        // Example: For testing only - to be replaced with proper implementation
+        // await setupSendGridApiKey('your-api-key-from-secure-source');
       } catch (error) {
         console.error('Error during initialization:', error);
       } finally {
