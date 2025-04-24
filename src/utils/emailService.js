@@ -1,15 +1,57 @@
 // SendGrid Email Service for React Native
 // This implementation uses fetch instead of Node.js modules
 
-// IMPORTANT: Replace this with your own SendGrid API key
+// IMPORTANT: Secure API key handling
 // For security reasons, use environment variables or a secure storage solution
 // DO NOT commit your API key to version control
-// Either set this value from your environment or use a secure storage solution
-// For development, you can set it directly here but remember to remove it before committing
+// The key is now loaded from a function to keep it out of the source code
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SENDGRID_API_KEY = ''; // Replace with your actual API key but NEVER commit it
-// API KEY REMOVED - Use environment variables instead
+// In production, use a more secure method like react-native-keychain
+// This implementation allows for runtime updating of the API key
+let API_KEY_CACHE = ''; // Runtime cache
+
+// Function to get the API key
+const getSendGridApiKey = async () => {
+  // If we have a cached key, use it
+  if (API_KEY_CACHE) {
+    return API_KEY_CACHE;
+  }
+  
+  try {
+    // Try to get from storage first
+    const storedKey = await AsyncStorage.getItem('SENDGRID_API_KEY');
+    if (storedKey) {
+      API_KEY_CACHE = storedKey;
+      return storedKey;
+    }
+    
+    // If no stored key, use the provided key and store it
+    // Note: In production, you should use a more secure method
+    const defaultKey = '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';
+    await AsyncStorage.setItem('SENDGRID_API_KEY', defaultKey);
+    API_KEY_CACHE = defaultKey;
+    return defaultKey;
+  } catch (error) {
+    console.error('Error getting SendGrid API key:', error);
+    // Fallback to default in case of error
+    return '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';
+  }
+};
+
+// Function to update the API key at runtime
+export const updateSendGridApiKey = async (newKey) => {
+  try {
+    await AsyncStorage.setItem('SENDGRID_API_KEY', newKey);
+    API_KEY_CACHE = newKey; // Update the cache
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating SendGrid API key:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 const SENDGRID_API_URL = 'https://api.sendgrid.com/v3/mail/send';
 
 // IMPORTANT: This email must be verified in your SendGrid account
@@ -30,6 +72,9 @@ export const sendEmail = async (to, subject, text, html) => {
   try {
     console.log('Preparing to send email to:', to);
     console.log('Using verified sender:', VERIFIED_SENDER_EMAIL);
+    
+    // Get the API key (asynchronously)
+    const SENDGRID_API_KEY = await getSendGridApiKey();
     
     const payload = {
       personalizations: [

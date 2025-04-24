@@ -1,223 +1,217 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  FlatList, 
-  TouchableOpacity, 
-  TextInput, 
-  SafeAreaView,
-  StatusBar,
-  ActivityIndicator
-} from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, SafeAreaView, StatusBar, ActivityIndicator, RefreshControl, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 
-// Import Firebase functions
-import { getDocuments, queryDocuments } from '../../utils/firebaseConfig';
-
-// Import helper functions
-import { formatDate, formatTime } from '../../utils/helpers';
+// Import schedule service
+import { 
+  getScheduleByDay, 
+  initializeSchedule,
+  formatScheduleTime
+} from '../../utils/scheduleService';
 
 const ScheduleScreen = ({ navigation }) => {
-  const { theme } = useTheme();
+  const { theme, isDarkMode } = useTheme();
   const { userData } = useAuth();
   
   // State for tabs and filtering
-  const [activeTab, setActiveTab] = useState('today');
+  const [currentDay, setCurrentDay] = useState(1); // Default to Day 1
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   
   // State for schedule items
   const [scheduleItems, setScheduleItems] = useState([]);
-  const [filteredSchedule, setFilteredSchedule] = useState([]);
   
-  // Use mentor data from auth
-  const currentMentor = userData ? { 
-    id: userData.uid || userData.mentorId, 
-    name: userData.displayName || userData.email 
-  } : { id: null, name: null };
+  // State for selected item and modal
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
   
-  // Fetch data when component mounts or mentor changes
+  // Initialize and fetch schedule data when component mounts or day changes
+  useEffect(() => {
+    initializeAndFetchData();
+  }, []);
+
+  // Fetch data whenever day changes
   useEffect(() => {
     fetchScheduleData();
-  }, [currentMentor.id]);
+  }, [currentDay]);
   
-  const fetchScheduleData = async () => {
+  const initializeAndFetchData = async () => {
     setLoading(true);
     try {
-      console.log('Fetching schedule data for mentor:', currentMentor.id || 'all');
+      // First ensure the schedule is initialized
+      await initializeSchedule();
       
-      let fetchedSchedules = [];
-      
-      if (currentMentor.id) {
-        // Query schedules related to this mentor
-        fetchedSchedules = await queryDocuments('schedules', [
-          ['mentorId', '==', currentMentor.id],
-        ]);
-        
-        // Also get other events where instructor or participants include this mentor
-        const instructorEvents = await queryDocuments('schedules', [
-          ['instructor', '==', currentMentor.name],
-        ]);
-        
-        // Add any events not already included
-        instructorEvents.forEach(event => {
-          if (!fetchedSchedules.some(e => e.id === event.id)) {
-            fetchedSchedules.push(event);
-          }
-        });
-      } else {
-        // Fallback to get all schedules if no mentor ID
-        fetchedSchedules = await getDocuments('schedules');
-      }
-      
-      console.log(`Fetched ${fetchedSchedules.length} schedule items`);
-      
-      if (fetchedSchedules && fetchedSchedules.length > 0) {
-        setScheduleItems(fetchedSchedules);
-      } else {
-        // No data found
-        console.log('No schedule items found in the database');
-        setScheduleItems([]);
-      }
+      // Then fetch data for current day
+      await fetchScheduleData();
     } catch (error) {
-      console.error('Error fetching schedule data:', error);
-      // Set empty array on error
-      setScheduleItems([]);
+      console.error('Error initializing and fetching schedule data:', error);
     } finally {
       setLoading(false);
     }
   };
   
-  // Process schedule items for display
-  const processScheduleItem = (item) => {
-    // Determine the item type based on its properties
-    let type = item.type || 'event';
-    if (!type) {
-      if (item.instructor === currentMentor.name) type = 'class';
-      else if (item.student) type = 'meeting';
-      else type = 'activity';
+  const fetchScheduleData = async () => {
+    try {
+      setLoading(true);
+      // Fetch schedule for current day
+      const items = await getScheduleByDay(currentDay);
+      
+      console.log(`Fetched ${items.length} items for Day ${currentDay}`);
+      
+      // Sort by time
+      items.sort((a, b) => {
+        const timeA = timeToMinutes(a.startTime);
+        const timeB = timeToMinutes(b.startTime);
+        return timeA - timeB;
+      });
+      
+      setScheduleItems(items);
+    } catch (error) {
+      console.error('Error fetching schedule data:', error);
+    } finally {
+      setLoading(false);
     }
-    
-    return {
-      id: item.id || `schedule-${Math.random().toString(36).substring(2, 9)}`,
-      name: item.name || item.title || 'Untitled Event',
-      type: type,
-      time: item.time || item.schedule?.time || '09:00',
-      date: item.date || item.schedule?.date || new Date().toISOString().split('T')[0],
-      location: item.location || item.place || 'Unknown Location',
-      student: item.student || null,
-      description: item.description || item.details || '',
-    };
   };
   
-  // Function to filter schedule based on active tab and search query
-  useEffect(() => {
-    // Process all schedule items
-    const processedItems = scheduleItems.map(processScheduleItem);
-    
-    // Filter based on search query
-    let filtered = processedItems;
-    if (searchQuery) {
-      filtered = filtered.filter(item => 
-        (item.name && item.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (item.student && item.student.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (item.location && item.location.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
+  // Handle refresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchScheduleData();
+    } catch (error) {
+      console.error('Error refreshing schedule data:', error);
+    } finally {
+      setRefreshing(false);
     }
+  }, [currentDay]);
+  
+  // Convert time string to minutes for proper sorting
+  const timeToMinutes = (timeStr) => {
+    if (!timeStr) return 0;
     
-    // Filter based on selected tab
-    const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
-    
-    if (activeTab === 'today') {
-      filtered = filtered.filter(item => item.date === today);
-    } else if (activeTab === 'upcoming') {
-      filtered = filtered.filter(item => item.date >= today);
-    }
-    
-    // Sort by date and time
-    filtered.sort((a, b) => {
-      if (a.date === b.date) {
-        return (a.time || '').localeCompare(b.time || '');
+    try {
+      // First standardize the time format
+      let hour = 0;
+      let minute = 0;
+      
+      // Handle HH:MM format (24-hour)
+      if (timeStr.includes(':') && !timeStr.toLowerCase().includes('am') && !timeStr.toLowerCase().includes('pm')) {
+        const [hourStr, minuteStr] = timeStr.split(':');
+        hour = parseInt(hourStr, 10);
+        minute = parseInt(minuteStr, 10);
       }
-      return (a.date || '').localeCompare(b.date || '');
-    });
+      // Handle HH:MM AM/PM format
+      else if (timeStr.includes(':')) {
+        const isPM = timeStr.toLowerCase().includes('pm');
+        const isAM = timeStr.toLowerCase().includes('am');
+        
+        // Strip out the AM/PM
+        let timePart = timeStr.toLowerCase()
+          .replace('am', '')
+          .replace('pm', '')
+          .replace('a.m.', '')
+          .replace('p.m.', '')
+          .replace(' ', '');
+        
+        const [hourStr, minuteStr] = timePart.split(':');
+        hour = parseInt(hourStr, 10);
+        minute = parseInt(minuteStr, 10);
+        
+        // Convert to 24-hour format
+        if (isPM && hour < 12) {
+          hour += 12;
+        } else if (isAM && hour === 12) {
+          hour = 0;
+        }
+      }
+      
+      return (hour * 60) + minute;
+    } catch (error) {
+      console.error('Error parsing time:', timeStr, error);
+      return 0;
+    }
+  };
+  
+  // Filter items based on search query
+  const getFilteredItems = () => {
+    if (!searchQuery) return scheduleItems;
     
-    setFilteredSchedule(filtered);
-  }, [activeTab, searchQuery, scheduleItems]);
+    return scheduleItems.filter(item => 
+      (item.title && item.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (item.instructor && item.instructor.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (item.location && item.location.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+  };
+  
+  // Show item detail in modal
+  const showItemDetail = (item) => {
+    setSelectedItem(item);
+    setModalVisible(true);
+  };
   
   // Render each schedule item
   const renderScheduleItem = ({ item }) => {
-    // Determine the type-specific properties
-    let typeColor, typeBadgeColor, typeTextColor;
+    // Determine item type and styling based on type
+    const isClass = item.type === 'class' || item.type === 'session';
+    const isMeal = item.type === 'meal';
+    const isFree = item.type === 'free';
     
-    switch (item.type) {
-      case 'class':
-        typeColor = theme.colors.tertiary;
-        typeBadgeColor = theme.mode === 'dark' ? 'rgba(93, 95, 239, 0.2)' : '#e8eeff';
-        typeTextColor = theme.colors.tertiary;
-        break;
-      case 'activity':
-        typeColor = theme.colors.primary;
-        typeBadgeColor = theme.mode === 'dark' ? 'rgba(249, 168, 38, 0.2)' : '#fff8e8';
-        typeTextColor = theme.colors.primary;
-        break;
-      case 'meeting':
-        typeColor = theme.colors.success;
-        typeBadgeColor = theme.mode === 'dark' ? 'rgba(46, 204, 113, 0.2)' : '#e8fff0';
-        typeTextColor = theme.colors.success;
-        break;
-      default:
-        typeColor = theme.colors.text.tertiary;
-        typeBadgeColor = theme.mode === 'dark' ? 'rgba(153, 153, 153, 0.2)' : '#f0f0f0';
-        typeTextColor = theme.colors.text.tertiary;
-    }
+    // Determine color based on item type
+    let itemColor = theme.colors.primary; // Default for activities
+    if (isClass) itemColor = theme.colors.tertiary;
+    if (isMeal) itemColor = theme.colors.success || '#4CAF50';
+    if (isFree) itemColor = theme.colors.warning || '#FF9800';
     
     return (
       <TouchableOpacity 
         style={[styles.scheduleItem, { 
-          backgroundColor: theme.colors.card,
-          borderColor: theme.colors.border 
+          backgroundColor: isDarkMode ? '#2A2A2A' : '#FFFFFF',
+          borderColor: isDarkMode ? '#333333' : '#EEEEEE'
         }]}
-        onPress={() => {
-          // Navigate to details screen based on type
-          console.log('View schedule details', item.id);
-        }}
+        onPress={() => showItemDetail(item)}
       >
-        <View style={[styles.itemTypeIndicator, { backgroundColor: typeColor }]} />
+        <View style={[styles.itemTypeIndicator, { backgroundColor: itemColor }]} />
         <View style={styles.itemContent}>
           <View style={styles.itemHeader}>
-            <Text style={[styles.itemName, { color: theme.colors.text.primary }]}>{item.name}</Text>
-            <View style={[styles.itemTypeBadge, { backgroundColor: typeBadgeColor }]}>
-              <Text style={[styles.itemTypeText, { color: typeTextColor }]}>
-                {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+            <Text style={[styles.itemName, { color: isDarkMode ? '#FFFFFF' : '#333333' }]}>
+              {item.title || 'Untitled Event'}
+            </Text>
+            <View style={[styles.itemTypeBadge, { 
+              backgroundColor: isDarkMode ? '#3A3A3A' : '#F5F5F5'
+            }]}>
+              <Text style={[styles.itemTypeText, { color: itemColor }]}>
+                {isClass ? 'Session' : isMeal ? 'Meal' : isFree ? 'Free Time' : 'Activity'}
               </Text>
             </View>
           </View>
           
           <View style={styles.itemDetails}>
             <View style={styles.detailRow}>
-              <Ionicons name="calendar-outline" size={16} color={theme.colors.text.secondary} style={styles.detailIcon} />
-              <Text style={[styles.detailText, { color: theme.colors.text.secondary }]}>{formatDate(item.date, 'medium')}</Text>
+              <Ionicons name="time-outline" size={16} color={isDarkMode ? '#CCCCCC' : '#666666'} style={styles.detailIcon} />
+              <Text style={[styles.detailText, { color: isDarkMode ? '#CCCCCC' : '#666666' }]}>
+                {formatScheduleTime(item.startTime)} - {formatScheduleTime(item.endTime)}
+              </Text>
             </View>
             
-            <View style={styles.detailRow}>
-              <Ionicons name="time-outline" size={16} color={theme.colors.text.secondary} style={styles.detailIcon} />
-              <Text style={[styles.detailText, { color: theme.colors.text.secondary }]}>{formatTime(item.time)}</Text>
-            </View>
-            
-            <View style={styles.detailRow}>
-              <Ionicons name="location-outline" size={16} color={theme.colors.text.secondary} style={styles.detailIcon} />
-              <Text style={[styles.detailText, { color: theme.colors.text.secondary }]}>{item.location}</Text>
-            </View>
-            
-            {item.student && (
+            {item.location && (
               <View style={styles.detailRow}>
-                <Ionicons name="person-outline" size={16} color={theme.colors.text.secondary} style={styles.detailIcon} />
-                <Text style={[styles.detailText, { color: theme.colors.text.secondary }]}>{item.student}</Text>
+                <Ionicons name="location-outline" size={16} color={isDarkMode ? '#CCCCCC' : '#666666'} style={styles.detailIcon} />
+                <Text style={[styles.detailText, { color: isDarkMode ? '#CCCCCC' : '#666666' }]}>
+                  {item.location}
+                </Text>
+              </View>
+            )}
+            
+            {item.instructor && (
+              <View style={styles.detailRow}>
+                <Ionicons name="person-outline" size={16} color={isDarkMode ? '#CCCCCC' : '#666666'} style={styles.detailIcon} />
+                <Text style={[styles.detailText, { color: isDarkMode ? '#CCCCCC' : '#666666' }]}>
+                  {item.instructor}
+                </Text>
               </View>
             )}
           </View>
@@ -229,14 +223,12 @@ const ScheduleScreen = ({ navigation }) => {
   // Return empty state component when no schedule items are found
   const renderEmptyState = () => (
     <View style={styles.emptyStateContainer}>
-      <Ionicons name="calendar-outline" size={64} color={theme.colors.text.tertiary} />
-      <Text style={[styles.emptyStateTitle, { color: theme.colors.text.primary }]}>No events found</Text>
-      <Text style={[styles.emptyStateText, { color: theme.colors.text.secondary }]}>
-        {activeTab === 'today' 
-          ? "You don't have any events scheduled for today." 
-          : activeTab === 'upcoming' 
-            ? "You don't have any upcoming events." 
-            : "No events match your search criteria."}
+      <Ionicons name="calendar-outline" size={64} color={isDarkMode ? '#666666' : '#CCCCCC'} />
+      <Text style={[styles.emptyStateTitle, { color: isDarkMode ? '#FFFFFF' : '#333333' }]}>
+        No schedule items found
+      </Text>
+      <Text style={[styles.emptyStateText, { color: isDarkMode ? '#CCCCCC' : '#666666' }]}>
+        There are no events scheduled for Day {currentDay}.
       </Text>
     </View>
   );
@@ -244,174 +236,298 @@ const ScheduleScreen = ({ navigation }) => {
   // Render loading indicator
   const renderLoading = () => (
     <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" color={theme.colors.primary} />
-      <Text style={[styles.loadingText, { color: theme.colors.text.primary }]}>Loading schedule...</Text>
+      <ActivityIndicator size="large" color="#F9A826" />
+      <Text style={[styles.loadingText, { color: isDarkMode ? '#FFFFFF' : '#333333' }]}>
+        Loading schedule...
+      </Text>
     </View>
   );
 
+  // Render item detail modal
+  const renderDetailModal = () => {
+    if (!selectedItem) return null;
+    
+    const isClass = selectedItem.type === 'class' || selectedItem.type === 'session';
+    const isMeal = selectedItem.type === 'meal';
+    const isFree = selectedItem.type === 'free';
+    
+    // Determine color based on item type
+    let itemColor = theme.colors.primary; // Default for activities
+    if (isClass) itemColor = theme.colors.tertiary;
+    if (isMeal) itemColor = theme.colors.success;
+    if (isFree) itemColor = theme.colors.warning;
+    
+    return (
+      <Modal
+        visible={modalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { 
+            backgroundColor: isDarkMode ? '#2A2A2A' : '#FFFFFF',
+            borderColor: isDarkMode ? '#333333' : '#EEEEEE'
+          }]}>
+            <View style={styles.modalHeader}>
+              <View style={[styles.itemTypeBadge, { 
+                backgroundColor: isDarkMode ? '#3A3A3A' : '#F5F5F5'
+              }]}>
+                <Text style={[styles.itemTypeText, { color: itemColor }]}>
+                  {isClass ? 'Session' : isMeal ? 'Meal' : isFree ? 'Free Time' : 'Activity'}
+                </Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={styles.closeButton} 
+                onPress={() => setModalVisible(false)}
+              >
+                <Ionicons name="close" size={24} color={isDarkMode ? '#FFFFFF' : '#333333'} />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={[styles.modalTitle, { color: isDarkMode ? '#FFFFFF' : '#333333' }]}>
+              {selectedItem.title || 'Untitled Event'}
+            </Text>
+            
+            <View style={styles.itemDetails}>
+              <View style={styles.detailRow}>
+                <Ionicons name="time-outline" size={16} color={isDarkMode ? '#CCCCCC' : '#666666'} style={styles.detailIcon} />
+                <Text style={[styles.detailText, { color: isDarkMode ? '#CCCCCC' : '#666666' }]}>
+                  {formatScheduleTime(selectedItem.startTime)} - {formatScheduleTime(selectedItem.endTime)}
+                </Text>
+              </View>
+              
+              {selectedItem.location && (
+                <View style={styles.detailRow}>
+                  <Ionicons name="location-outline" size={16} color={isDarkMode ? '#CCCCCC' : '#666666'} style={styles.detailIcon} />
+                  <Text style={[styles.detailText, { color: isDarkMode ? '#CCCCCC' : '#666666' }]}>
+                    {selectedItem.location}
+                  </Text>
+                </View>
+              )}
+              
+              {selectedItem.instructor && (
+                <View style={styles.detailRow}>
+                  <Ionicons name="person-outline" size={16} color={isDarkMode ? '#CCCCCC' : '#666666'} style={styles.detailIcon} />
+                  <Text style={[styles.detailText, { color: isDarkMode ? '#CCCCCC' : '#666666' }]}>
+                    {selectedItem.instructor}
+                  </Text>
+                </View>
+              )}
+            </View>
+            
+            {selectedItem.description && (
+              <View style={styles.descriptionContainer}>
+                <Text style={[styles.descriptionLabel, { color: isDarkMode ? '#FFFFFF' : '#333333' }]}>
+                  Description
+                </Text>
+                <Text style={[styles.descriptionText, { color: isDarkMode ? '#CCCCCC' : '#666666' }]}>
+                  {selectedItem.description}
+                </Text>
+              </View>
+            )}
+            
+            {isClass && (
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: itemColor }]}
+                onPress={() => {
+                  setModalVisible(false);
+                  // Navigate to detailed class view if applicable
+                  if (selectedItem.classId) {
+                    navigation.navigate('ClassDetails', { id: selectedItem.classId });
+                  }
+                }}
+              >
+                <Text style={styles.actionButtonText}>View Session Details</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
-      <StatusBar barStyle={theme.colors.statusBar} backgroundColor={theme.colors.background.primary} />
-      <View style={[styles.header, { 
-        backgroundColor: theme.colors.background.secondary,
-        borderBottomColor: theme.colors.border 
-      }]}>
-        <Text style={[styles.screenTitle, { color: theme.colors.text.primary }]}>My Schedule</Text>
-        
-        <TouchableOpacity 
-          style={styles.refreshButton}
-          onPress={fetchScheduleData}
-        >
-          <Ionicons name="refresh" size={24} color={theme.colors.primary} />
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={[styles.safeArea, { 
+      backgroundColor: isDarkMode ? theme.colors.background.primary : '#FFFFFF' 
+    }]}>
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
       
-      <View style={[styles.searchContainer, { 
-        backgroundColor: theme.colors.card,
-        borderColor: theme.colors.border 
-      }]}>
-        <Ionicons name="search-outline" size={20} color={theme.colors.text.tertiary} style={styles.searchIcon} />
-        <TextInput
-          style={[styles.searchInput, { color: theme.colors.text.primary }]}
-          placeholder="Search events..."
-          placeholderTextColor={theme.colors.text.tertiary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery !== '' && (
-          <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
-            <Ionicons name="close-circle" size={20} color={theme.colors.text.tertiary} />
-          </TouchableOpacity>
+      <View style={styles.container}>
+        {/* Header and Search */}
+        <View style={[styles.header, { 
+          backgroundColor: isDarkMode ? theme.colors.background.primary : '#FFFFFF',
+          borderBottomColor: isDarkMode ? '#333333' : '#EEEEEE' 
+        }]}>
+          {/* Search Row */}
+          <View style={styles.searchRow}>
+            <View style={[styles.searchBar, { 
+              backgroundColor: isDarkMode ? '#333333' : '#F5F5F5',
+              borderColor: isDarkMode ? '#444444' : '#E0E0E0',
+              flex: 1
+            }]}>
+              <Ionicons name="search" size={20} color={isDarkMode ? '#CCCCCC' : '#666666'} />
+              <TextInput
+                placeholder="Search schedule..."
+                placeholderTextColor={isDarkMode ? '#999999' : '#999999'}
+                style={[styles.searchInput, { color: isDarkMode ? '#FFFFFF' : '#333333' }]}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery ? (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={20} color={isDarkMode ? '#CCCCCC' : '#666666'} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </View>
+          
+          {/* Day Tabs Row */}
+          <View style={styles.tabs}>
+            <TouchableOpacity 
+              style={[
+                styles.tab, 
+                currentDay === 1 && [styles.activeTab, { 
+                  backgroundColor: isDarkMode ? theme.colors.primary : theme.colors.primary,
+                }]
+              ]}
+              onPress={() => setCurrentDay(1)}
+            >
+              <Text style={[
+                styles.tabText, 
+                currentDay === 1 ? { color: '#FFFFFF', fontWeight: 'bold' } : { 
+                  color: isDarkMode ? '#CCCCCC' : '#666666' 
+                }
+              ]}>
+                Day 1
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[
+                styles.tab, 
+                currentDay === 2 && [styles.activeTab, { 
+                  backgroundColor: isDarkMode ? theme.colors.primary : theme.colors.primary,
+                }]
+              ]}
+              onPress={() => setCurrentDay(2)}
+            >
+              <Text style={[
+                styles.tabText, 
+                currentDay === 2 ? { color: '#FFFFFF', fontWeight: 'bold' } : { 
+                  color: isDarkMode ? '#CCCCCC' : '#666666' 
+                }
+              ]}>
+                Day 2
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        
+        {/* Schedule List */}
+        {loading ? (
+          renderLoading()
+        ) : (
+          <FlatList
+            data={getFilteredItems()}
+            keyExtractor={(item) => item.id || `${item.title}-${item.startTime}`}
+            renderItem={renderScheduleItem}
+            ListEmptyComponent={renderEmptyState()}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[theme.colors.primary]}
+                tintColor={isDarkMode ? '#FFFFFF' : theme.colors.primary}
+              />
+            }
+          />
         )}
       </View>
       
-      <View style={[styles.tabContainer, { borderBottomColor: theme.colors.border }]}>
-        <TouchableOpacity
-          style={[
-            styles.tab, 
-            activeTab === 'today' && [styles.activeTab, { borderBottomColor: theme.colors.primary }]
-          ]}
-          onPress={() => setActiveTab('today')}
-        >
-          <Text style={[
-            styles.tabText, 
-            { color: theme.colors.text.secondary },
-            activeTab === 'today' && { color: theme.colors.primary }
-          ]}>Today</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[
-            styles.tab, 
-            activeTab === 'upcoming' && [styles.activeTab, { borderBottomColor: theme.colors.primary }]
-          ]}
-          onPress={() => setActiveTab('upcoming')}
-        >
-          <Text style={[
-            styles.tabText, 
-            { color: theme.colors.text.secondary },
-            activeTab === 'upcoming' && { color: theme.colors.primary }
-          ]}>Upcoming</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[
-            styles.tab, 
-            activeTab === 'all' && [styles.activeTab, { borderBottomColor: theme.colors.primary }]
-          ]}
-          onPress={() => setActiveTab('all')}
-        >
-          <Text style={[
-            styles.tabText, 
-            { color: theme.colors.text.secondary },
-            activeTab === 'all' && { color: theme.colors.primary }
-          ]}>All Events</Text>
-        </TouchableOpacity>
-      </View>
-      
-      {loading ? (
-        renderLoading()
-      ) : (
-        <FlatList
-          data={filteredSchedule}
-          renderItem={renderScheduleItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.scheduleList}
-          ListEmptyComponent={renderEmptyState}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+      {/* Modal for item details */}
+      {renderDetailModal()}
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   container: {
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
+    flexDirection: 'column',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
   },
-  screenTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  refreshButton: {
-    padding: 8,
-  },
-  searchContainer: {
+  searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
-    marginVertical: 12,
+    marginBottom: 12,
+  },
+  screenTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
   },
-  searchIcon: {
-    marginRight: 8,
-  },
   searchInput: {
     flex: 1,
-    height: 40,
     fontSize: 16,
+    height: 40,
   },
-  clearButton: {
-    padding: 4,
-  },
-  tabContainer: {
+  tabs: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    marginBottom: 8,
+    width: '100%',
+    marginTop: 8,
   },
   tab: {
     flex: 1,
-    alignItems: 'center',
     paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: '#2A2A2A',
   },
   activeTab: {
-    borderBottomWidth: 2,
+    backgroundColor: '#F9A826',
   },
   tabText: {
+    fontSize: 16,
     fontWeight: '500',
   },
-  scheduleList: {
-    padding: 16,
-    paddingBottom: 24,
+  listContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingBottom: 80,
   },
   scheduleItem: {
     flexDirection: 'row',
     borderRadius: 8,
     marginBottom: 12,
-    overflow: 'hidden',
     borderWidth: 1,
+    overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   itemTypeIndicator: {
-    width: 4,
+    width: 6,
   },
   itemContent: {
     flex: 1,
@@ -427,16 +543,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     flex: 1,
+    marginRight: 8,
   },
   itemTypeBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    marginLeft: 8,
   },
   itemTypeText: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   itemDetails: {
     marginTop: 4,
@@ -448,8 +564,6 @@ const styles = StyleSheet.create({
   },
   detailIcon: {
     marginRight: 6,
-    width: 16,
-    alignItems: 'center',
   },
   detailText: {
     fontSize: 14,
@@ -457,8 +571,7 @@ const styles = StyleSheet.create({
   emptyStateContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    marginTop: 40,
+    paddingTop: 60,
   },
   emptyStateTitle: {
     fontSize: 18,
@@ -469,17 +582,70 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 14,
     textAlign: 'center',
+    paddingHorizontal: 40,
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
   },
   loadingText: {
-    marginTop: 16,
+    marginTop: 12,
     fontSize: 16,
-    fontWeight: 'bold',
   },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxHeight: '80%',
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  closeButton: {
+    padding: 8,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  descriptionContainer: {
+    marginTop: 16,
+  },
+  descriptionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  descriptionText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  actionButton: {
+    marginTop: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  }
 });
 
 export default ScheduleScreen; 

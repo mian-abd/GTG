@@ -3,100 +3,162 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, S
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { format, parseISO, parse } from 'date-fns';
 
 // Import Firebase functions
-import { getDocuments, updateDocument, deleteDocument, addDocument } from '../../utils/firebaseConfig';
+import { getDocuments, updateDocument, deleteDocument, addDocument, queryDocuments } from '../../utils/firebaseConfig';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../../utils/firebaseConfig';
+
+// Import schedule service
+import { 
+  getScheduleByDay, 
+  deleteScheduleItem, 
+  addScheduleItem, 
+  updateScheduleItem,
+  SESSION_DATES,
+  initializeSchedule,
+  formatScheduleDate,
+  formatScheduleTime
+} from '../../utils/scheduleService';
 
 // Import demo data
 import { ACTIVITIES, CLASSES } from '../../utils/demoData';
 
 const ProgramScheduleScreen = () => {
   const navigation = useNavigation();
-  const [activeTab, setActiveTab] = useState('activities');
-  const [items, setItems] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [currentDay, setCurrentDay] = useState(1); // Day 1 or Day 2
+  const [scheduleItems, setScheduleItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [addFormVisible, setAddFormVisible] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   
   // Form state for new activity
   const [newActivity, setNewActivity] = useState({
-    name: '',
-    date: '',
-    time: '',
+    title: '',
+    startTime: '',
+    endTime: '',
     location: '',
     description: '',
-    participants: []
+    type: 'activity',
+    day: 1
   });
 
-  // Form state for new class
-  const [newClass, setNewClass] = useState({
-    name: '',
-    instructor: '',
-    schedule: {
-      days: [],
-      time: ''
-    },
-    location: '',
-    description: ''
-  });
-  
+  // Initialize schedule data on component mount
   useEffect(() => {
-    if (activeTab === 'activities') {
-      fetchActivities();
-    } else {
-      fetchClasses();
-    }
-  }, [activeTab]);
-
-  const fetchActivities = async () => {
-    try {
-      setLoading(true);
-      const fetchedActivities = await getDocuments('activities');
-      if (fetchedActivities && fetchedActivities.length > 0) {
-        setItems(fetchedActivities);
-      } else {
-        // Fallback to demo data if no data in Firebase
-        setItems(ACTIVITIES);
+    const initializeData = async () => {
+      try {
+        setLoading(true);
+        // Initialize schedule to ensure defaults are set
+        await initializeSchedule();
+      } catch (error) {
+        console.error('Error initializing schedule:', error);
+        Alert.alert('Error', 'Failed to initialize schedule data.');
+      } finally {
+        setLoading(false);
       }
+    };
+    
+    initializeData();
+  }, []);
+  
+  // Fetch schedule items when current day changes
+  useEffect(() => {
+    fetchScheduleItems();
+  }, [currentDay]);
+
+  // Convert time string to minutes for proper sorting
+  const timeToMinutes = (timeStr) => {
+    if (!timeStr) return 0;
+    
+    try {
+      // First standardize the time format
+      let hour = 0;
+      let minute = 0;
+      
+      // Handle HH:MM format (24-hour)
+      if (timeStr.includes(':') && !timeStr.toLowerCase().includes('am') && !timeStr.toLowerCase().includes('pm')) {
+        const [hourStr, minuteStr] = timeStr.split(':');
+        hour = parseInt(hourStr, 10);
+        minute = parseInt(minuteStr, 10);
+      }
+      // Handle HH:MM AM/PM format
+      else if (timeStr.includes(':')) {
+        const isPM = timeStr.toLowerCase().includes('pm');
+        const isAM = timeStr.toLowerCase().includes('am');
+        
+        // Strip out the AM/PM
+        let timePart = timeStr.toLowerCase()
+          .replace('am', '')
+          .replace('pm', '')
+          .replace('a.m.', '')
+          .replace('p.m.', '')
+          .replace(' ', '');
+        
+        const [hourStr, minuteStr] = timePart.split(':');
+        hour = parseInt(hourStr, 10);
+        minute = parseInt(minuteStr, 10);
+        
+        // Convert to 24-hour format
+        if (isPM && hour < 12) {
+          hour += 12;
+        } else if (isAM && hour === 12) {
+          hour = 0;
+        }
+      }
+      
+      return (hour * 60) + minute;
     } catch (error) {
-      console.error('Error fetching activities:', error);
-      // Fallback to demo data
-      setItems(ACTIVITIES);
-    } finally {
-      setLoading(false);
+      console.error('Error parsing time:', timeStr, error);
+      return 0;
     }
   };
 
-  const fetchClasses = async () => {
+  const fetchScheduleItems = async () => {
     try {
       setLoading(true);
-      const fetchedClasses = await getDocuments('classes');
-      if (fetchedClasses && fetchedClasses.length > 0) {
-        setItems(fetchedClasses);
-      } else {
-        // Fallback to demo data if no data in Firebase
-        setItems(CLASSES);
-      }
+      
+      // Get schedule items for the current day using scheduleService
+      const items = await getScheduleByDay(currentDay);
+      
+      // Sort by start time effectively
+      items.sort((a, b) => {
+        const timeA = timeToMinutes(a.startTime);
+        const timeB = timeToMinutes(b.startTime);
+        return timeA - timeB;
+      });
+      
+      setScheduleItems(items);
     } catch (error) {
-      console.error('Error fetching classes:', error);
-      // Fallback to demo data
-      setItems(CLASSES);
+      console.error('Error fetching schedule items:', error);
+      Alert.alert('Error', 'Failed to load schedule data. Please try again.');
     } finally {
       setLoading(false);
     }
   };
   
-  // Handle edit item
   const handleEditItem = (item) => {
-    // Navigate to edit form or show edit modal
-    console.log('Edit item:', item);
-    Alert.alert('Edit Item', 'This functionality will be implemented soon.');
+    // Set up the form with the current item's data
+    setNewActivity({
+      id: item.id,
+      title: item.title || '',
+      startTime: item.startTime || '',
+      endTime: item.endTime || '',
+      location: item.location || '',
+      description: item.description || '',
+      type: item.type || 'activity',
+      day: item.day || currentDay,
+      date: item.date || SESSION_DATES[currentDay - 1]
+    });
+    
+    setEditMode(true);
+    setModalVisible(false);
+    setAddFormVisible(true);
   };
 
-  // Handle delete item
   const handleDeleteItem = async (item) => {
     if (!item || !item.id) {
       console.error('Invalid item or missing ID:', item);
@@ -104,8 +166,7 @@ const ProgramScheduleScreen = () => {
       return;
     }
     
-    const collectionName = activeTab === 'activities' ? 'activities' : 'classes';
-    const itemName = item.name || 'selected item';
+    const itemName = item.title || 'selected item';
     
     Alert.alert(
       'Delete Item',
@@ -127,15 +188,12 @@ const ProgramScheduleScreen = () => {
                 setSelectedItem(null);
               }, 200);
               
-              // Attempt deletion from Firestore
-              const success = await deleteDocument(collectionName, item.id);
+              // Attempt deletion using scheduleService
+              const success = await deleteScheduleItem(item.id);
               
               if (success) {
                 // Update local state
-                setItems(prev => {
-                  const newItems = prev.filter(i => i.id !== item.id);
-                  return newItems;
-                });
+                setScheduleItems(prev => prev.filter(i => i.id !== item.id));
                 
                 // Show success message
                 setTimeout(() => {
@@ -167,105 +225,102 @@ const ProgramScheduleScreen = () => {
       const itemCopy = JSON.parse(JSON.stringify(item));
       setSelectedItem(itemCopy);
       setTimeout(() => {
-    setModalVisible(true);
+        setModalVisible(true);
       }, 50); // Small delay to ensure state update completes
     }
   };
 
   const handleAddItem = () => {
-    setAddModalVisible(true);
+    // Reset form for new item
+    setNewActivity({
+      title: '',
+      startTime: '',
+      endTime: '',
+      location: '',
+      description: '',
+      type: 'activity',
+      day: currentDay,
+      date: SESSION_DATES[currentDay - 1]
+    });
+    
+    setEditMode(false);
+    setAddFormVisible(true);
   };
 
-  // Handle add activity submit
-  const handleAddActivitySubmit = async () => {
-    // Validate form
-    if (!newActivity.name || !newActivity.date || !newActivity.time || !newActivity.location) {
-      Alert.alert('Error', 'Please fill in all required fields');
+  // Handle form submission (for both add and edit)
+  const handleSubmitForm = async () => {
+    // Validate form - only title and times are required
+    if (!newActivity.title || !newActivity.startTime || !newActivity.endTime) {
+      Alert.alert('Error', 'Please fill in all required fields (title and time)');
       return;
     }
 
     try {
       setLoading(true);
-      // Add to Firebase
-      const activityId = await addDocument('activities', newActivity);
       
-      // Update local state
-      const addedActivity = {
-        id: activityId,
-        ...newActivity
+      // Prepare the item with additional fields
+      const scheduleItem = {
+        ...newActivity,
+        day: currentDay,
+        date: SESSION_DATES[currentDay - 1],
+        updatedAt: new Date().toISOString(),
+        isEditable: true
       };
       
-      setItems(prev => [...prev, addedActivity]);
+      let success = false;
+      let itemId = null;
       
-      // Reset form and close modal
-      setNewActivity({
-        name: '',
-        date: '',
-        time: '',
-        location: '',
-        description: '',
-        participants: []
-      });
+      if (editMode && newActivity.id) {
+        // Update existing item
+        success = await updateScheduleItem(newActivity.id, scheduleItem);
+        itemId = newActivity.id;
+      } else {
+        // Add new item
+        itemId = await addScheduleItem(scheduleItem);
+        success = !!itemId;
+      }
       
-      setAddFormVisible(false);
-      setAddModalVisible(false);
-      
-      // Remove success alert to prevent app from freezing
+      if (success) {
+        // Reload schedule items to get updated data
+        await fetchScheduleItems();
+        
+        // Reset form and close modal
+        setNewActivity({
+          title: '',
+          startTime: '',
+          endTime: '',
+          location: '',
+          description: '',
+          type: 'activity',
+          day: currentDay,
+          date: SESSION_DATES[currentDay - 1]
+        });
+        
+        setAddFormVisible(false);
+        setEditMode(false);
+        
+        Alert.alert('Success', 
+          editMode 
+            ? 'Schedule item updated successfully!' 
+            : 'New schedule item added successfully!'
+        );
+      } else {
+        Alert.alert('Error', 
+          editMode 
+            ? 'Failed to update item. Please try again.' 
+            : 'Failed to add item. Please try again.'
+        );
+      }
     } catch (error) {
-      console.error('Error adding activity:', error);
-      Alert.alert('Error', 'Failed to add activity');
+      console.error('Error handling form submission:', error);
+      Alert.alert('Error', 'Operation failed: ' + (error.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle add class submit
-  const handleAddClassSubmit = async () => {
-    // Validate form
-    if (!newClass.name || !newClass.instructor || !newClass.location) {
-      Alert.alert('Error', 'Please fill in all required fields');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      // Add to Firebase
-      const classId = await addDocument('classes', newClass);
-      
-      // Update local state
-      const addedClass = {
-        id: classId,
-        ...newClass
-      };
-      
-      setItems(prev => [...prev, addedClass]);
-      
-      // Reset form and close modal
-      setNewClass({
-        name: '',
-        instructor: '',
-        schedule: {
-          days: [],
-          time: ''
-        },
-        location: '',
-        description: ''
-      });
-      
-      setAddFormVisible(false);
-      setAddModalVisible(false);
-      
-      // Remove success alert to prevent app from freezing
-    } catch (error) {
-      console.error('Error adding class:', error);
-      Alert.alert('Error', 'Failed to add class');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Add form modal
-  const AddFormModal = () => (
+  // Add/Edit Form Modal
+  const FormModal = () => (
     <Modal
       animationType="slide"
       transparent={true}
@@ -273,219 +328,150 @@ const ProgramScheduleScreen = () => {
       onRequestClose={() => setAddFormVisible(false)}
     >
       <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
+        <View style={[styles.modalContent, { backgroundColor: '#2A2A2A' }]}>
           <ScrollView>
-                <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {activeTab === 'activities' ? 'Add New Activity' : 'Add New Class'}
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: '#fff' }]}>
+                {editMode ? 'Edit Schedule Item' : 'Add New Schedule Item'} (Day {currentDay})
               </Text>
               <TouchableOpacity onPress={() => setAddFormVisible(false)}>
-                    <Ionicons name="close" size={24} color="black" />
-                  </TouchableOpacity>
-                </View>
-                
-                {activeTab === 'activities' ? (
-              // Activity form
-              <>
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Activity Name *</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newActivity.name}
-                    onChangeText={(text) => setNewActivity(prev => ({ ...prev, name: text }))}
-                    placeholder="Enter activity name"
-                  />
-                </View>
-                
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Date *</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newActivity.date}
-                    onChangeText={(text) => setNewActivity(prev => ({ ...prev, date: text }))}
-                    placeholder="YYYY-MM-DD"
-                  />
-                </View>
-                
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Time *</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newActivity.time}
-                    onChangeText={(text) => setNewActivity(prev => ({ ...prev, time: text }))}
-                    placeholder="HH:MM"
-                  />
-                </View>
-                
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Location *</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newActivity.location}
-                    onChangeText={(text) => setNewActivity(prev => ({ ...prev, location: text }))}
-                    placeholder="Enter location"
-                  />
-                    </View>
-
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Description</Text>
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    value={newActivity.description}
-                    onChangeText={(text) => setNewActivity(prev => ({ ...prev, description: text }))}
-                    placeholder="Enter description"
-                    multiline
-                    numberOfLines={4}
-                  />
-                    </View>
-
-                <TouchableOpacity 
-                  style={styles.submitButton}
-                  onPress={handleAddActivitySubmit}
-                  disabled={loading}
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.formGroup}>
+              <Text style={[styles.label, { color: '#fff' }]}>Title *</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: '#3A3A3A', color: '#fff', borderColor: '#555' }]}
+                value={newActivity.title}
+                onChangeText={(text) => setNewActivity(prev => ({ ...prev, title: text }))}
+                placeholder="Enter schedule item title"
+                placeholderTextColor="#999"
+              />
+            </View>
+            
+            <View style={styles.formRow}>
+              <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+                <Text style={[styles.label, { color: '#fff' }]}>Start Time *</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: '#3A3A3A', color: '#fff', borderColor: '#555' }]}
+                  value={newActivity.startTime}
+                  onChangeText={(text) => setNewActivity(prev => ({ ...prev, startTime: text }))}
+                  placeholder="Example: 09:00"
+                  placeholderTextColor="#999"
+                />
+              </View>
+              
+              <View style={[styles.formGroup, { flex: 1 }]}>
+                <Text style={[styles.label, { color: '#fff' }]}>End Time *</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: '#3A3A3A', color: '#fff', borderColor: '#555' }]}
+                  value={newActivity.endTime}
+                  onChangeText={(text) => setNewActivity(prev => ({ ...prev, endTime: text }))}
+                  placeholder="Example: 10:30"
+                  placeholderTextColor="#999"
+                />
+              </View>
+            </View>
+            
+            <View style={styles.formGroup}>
+              <Text style={[styles.label, { color: '#fff' }]}>Location (Optional)</Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: '#3A3A3A', color: '#fff', borderColor: '#555' }]}
+                value={newActivity.location}
+                onChangeText={(text) => setNewActivity(prev => ({ ...prev, location: text }))}
+                placeholder="Enter location (optional)"
+                placeholderTextColor="#999"
+              />
+            </View>
+            
+            <View style={styles.formGroup}>
+              <Text style={[styles.label, { color: '#fff' }]}>Type</Text>
+              <View style={styles.typeSelector}>
+                <TouchableOpacity
+                  style={[
+                    styles.typeOption,
+                    newActivity.type === 'activity' && styles.selectedType,
+                    { backgroundColor: '#3A3A3A', borderColor: '#555' }
+                  ]}
+                  onPress={() => setNewActivity(prev => ({ ...prev, type: 'activity' }))}
                 >
-                  {loading ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <Text style={styles.submitButtonText}>Add Activity</Text>
-                  )}
+                  <Text style={[
+                    newActivity.type === 'activity' ? styles.selectedTypeText : { color: '#ccc' }
+                  ]}>
+                    Activity
+                  </Text>
                 </TouchableOpacity>
-              </>
-            ) : (
-              // Class form
-              <>
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Class Name *</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newClass.name}
-                    onChangeText={(text) => setNewClass(prev => ({ ...prev, name: text }))}
-                    placeholder="Enter class name"
-                  />
-                </View>
                 
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Instructor *</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newClass.instructor}
-                    onChangeText={(text) => setNewClass(prev => ({ ...prev, instructor: text }))}
-                    placeholder="Enter instructor name"
-                  />
-                </View>
-                
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Schedule Time</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newClass.schedule.time}
-                    onChangeText={(text) => setNewClass(prev => ({ 
-                      ...prev, 
-                      schedule: { ...prev.schedule, time: text } 
-                    }))}
-                    placeholder="HH:MM"
-                  />
-                </View>
-                
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Schedule Days</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newClass.schedule.days.join(', ')}
-                    onChangeText={(text) => setNewClass(prev => ({ 
-                      ...prev, 
-                      schedule: { ...prev.schedule, days: text.split(', ') } 
-                    }))}
-                    placeholder="Monday, Wednesday, Friday"
-                  />
-                </View>
-                
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Location *</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newClass.location}
-                    onChangeText={(text) => setNewClass(prev => ({ ...prev, location: text }))}
-                    placeholder="Enter location"
-                  />
-                    </View>
-
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Description</Text>
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    value={newClass.description}
-                    onChangeText={(text) => setNewClass(prev => ({ ...prev, description: text }))}
-                    placeholder="Enter description"
-                    multiline
-                    numberOfLines={4}
-                  />
-                    </View>
-                
-                <TouchableOpacity 
-                  style={styles.submitButton}
-                  onPress={handleAddClassSubmit}
-                  disabled={loading}
+                <TouchableOpacity
+                  style={[
+                    styles.typeOption,
+                    newActivity.type === 'session' && styles.selectedType,
+                    { backgroundColor: '#3A3A3A', borderColor: '#555' }
+                  ]}
+                  onPress={() => setNewActivity(prev => ({ ...prev, type: 'session' }))}
                 >
-                  {loading ? (
-                    <ActivityIndicator color="white" />
-                  ) : (
-                    <Text style={styles.submitButtonText}>Add Class</Text>
-                  )}
+                  <Text style={[
+                    newActivity.type === 'session' ? styles.selectedTypeText : { color: '#ccc' }
+                  ]}>
+                    Session
+                  </Text>
                 </TouchableOpacity>
-              </>
-            )}
+                
+                <TouchableOpacity
+                  style={[
+                    styles.typeOption,
+                    newActivity.type === 'meal' && styles.selectedType,
+                    { backgroundColor: '#3A3A3A', borderColor: '#555' }
+                  ]}
+                  onPress={() => setNewActivity(prev => ({ ...prev, type: 'meal' }))}
+                >
+                  <Text style={[
+                    newActivity.type === 'meal' ? styles.selectedTypeText : { color: '#ccc' }
+                  ]}>
+                    Meal
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={[styles.label, { color: '#fff' }]}>Description (Optional)</Text>
+              <TextInput
+                style={[
+                  styles.input, 
+                  styles.textArea, 
+                  { backgroundColor: '#3A3A3A', color: '#fff', borderColor: '#555' }
+                ]}
+                value={newActivity.description}
+                onChangeText={(text) => setNewActivity(prev => ({ ...prev, description: text }))}
+                placeholder="Enter description (optional)"
+                placeholderTextColor="#999"
+                multiline
+                numberOfLines={4}
+              />
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.submitButton, { backgroundColor: '#F9A826' }]}
+              onPress={handleSubmitForm}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text style={styles.submitButtonText}>
+                  {editMode ? 'Update Schedule Item' : 'Add Schedule Item'}
+                </Text>
+              )}
+            </TouchableOpacity>
           </ScrollView>
         </View>
       </View>
     </Modal>
   );
 
-  // Add Option Modal
-  const AddOptionModal = () => (
-    <Modal
-      animationType="fade"
-      transparent={true}
-      visible={addModalVisible}
-      onRequestClose={() => setAddModalVisible(false)}
-    >
-      <TouchableOpacity 
-        style={styles.modalOverlay}
-        activeOpacity={1}
-        onPress={() => setAddModalVisible(false)}
-      >
-        <View style={styles.addModalContainer}>
-          <View style={styles.addModalContent}>
-            <TouchableOpacity 
-              style={styles.addModalOption}
-              onPress={() => {
-                setAddModalVisible(false);
-                setAddFormVisible(true);
-              }}
-            >
-              <Ionicons name="add-circle-outline" size={22} color="#333" />
-              <Text style={styles.addModalOptionText}>
-                {activeTab === 'activities' ? 'Add Activity Manually' : 'Add Class Manually'}
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.addModalOption}
-              onPress={() => {
-                setAddModalVisible(false);
-                // Import from Excel
-                Alert.alert('Import from Excel', 'This functionality will be implemented soon.');
-              }}
-            >
-              <Ionicons name="document-outline" size={22} color="#333" />
-              <Text style={styles.addModalOptionText}>Import from Excel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </TouchableOpacity>
-    </Modal>
-  );
-
+  // Detail Modal
   const DetailModal = ({ visible, onClose, item, onEdit, onDelete, loading }) => {
     // Safe guard against null item references
     if (!item && visible) {
@@ -497,18 +483,18 @@ const ProgramScheduleScreen = () => {
           onRequestClose={onClose}
         >
           <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
+            <View style={[styles.modalContent, { backgroundColor: '#2A2A2A' }]}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Details</Text>
+                <Text style={[styles.modalTitle, { color: '#fff' }]}>Details</Text>
                 <TouchableOpacity onPress={onClose}>
-                  <Ionicons name="close" size={24} color="#333" />
+                  <Ionicons name="close" size={24} color="#fff" />
                 </TouchableOpacity>
               </View>
               <View style={styles.loadingContainer}>
-                <Text style={styles.loadingText}>No item to display</Text>
+                <Text style={[styles.loadingText, { color: '#ccc' }]}>No item to display</Text>
               </View>
               <TouchableOpacity
-                style={[styles.actionButton, {backgroundColor: '#555', alignSelf: 'center', marginTop: 20}]}
+                style={[styles.actionButton, { backgroundColor: '#555', alignSelf: 'center', marginTop: 20 }]}
                 onPress={onClose}
               >
                 <Text style={styles.buttonText}>Close</Text>
@@ -531,64 +517,53 @@ const ProgramScheduleScreen = () => {
         }}
       >
         <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: '#2A2A2A' }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {item?.type === 'tour' ? 'Campus Tour' : 'Event'} Details
+              <Text style={[styles.modalTitle, { color: '#fff' }]}>
+                {item?.type === 'session' ? 'Session' : item?.type === 'meal' ? 'Meal' : 'Activity'} Details
               </Text>
               <TouchableOpacity onPress={onClose} disabled={loading}>
-                <Ionicons name="close" size={24} color="#333" />
+                <Ionicons name="close" size={24} color="#fff" />
               </TouchableOpacity>
             </View>
             
             {loading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="goldenrod" />
-                <Text style={styles.loadingText}>Processing...</Text>
+                <ActivityIndicator size="large" color="#F9A826" />
+                <Text style={[styles.loadingText, { color: '#ccc' }]}>Processing...</Text>
               </View>
-                ) : (
-                  <>
-                    <View style={styles.detailSection}>
-                  <Text style={styles.sectionTitle}>Name</Text>
-                  <Text style={styles.detailItem}>{item?.name || 'N/A'}</Text>
-                    </View>
+            ) : (
+              <>
+                <View style={styles.detailSection}>
+                  <Text style={[styles.sectionTitle, { color: '#ccc' }]}>Title</Text>
+                  <Text style={[styles.detailItem, { color: '#fff' }]}>{item?.title || 'N/A'}</Text>
+                </View>
 
-                    <View style={styles.detailSection}>
-                  <Text style={styles.sectionTitle}>Date & Time</Text>
-                  <Text style={styles.detailItem}>
-                    {item?.date || 'N/A'}, {item?.startTime || ''} - {item?.endTime || ''}
+                <View style={styles.detailSection}>
+                  <Text style={[styles.sectionTitle, { color: '#ccc' }]}>Time</Text>
+                  <Text style={[styles.detailItem, { color: '#fff' }]}>
+                    {(item?.startTime && item?.endTime) ? `${item.startTime} - ${item.endTime}` : 'N/A'}
                   </Text>
-                    </View>
+                </View>
 
-                    <View style={styles.detailSection}>
-                      <Text style={styles.sectionTitle}>Location</Text>
-                  <Text style={styles.detailItem}>{item?.location || 'N/A'}</Text>
-                    </View>
-
-                {item?.type === 'tour' && (
+                {item?.location && (
                   <View style={styles.detailSection}>
-                    <Text style={styles.sectionTitle}>Guide</Text>
-                    <Text style={styles.detailItem}>{item?.guide || 'N/A'}</Text>
+                    <Text style={[styles.sectionTitle, { color: '#ccc' }]}>Location</Text>
+                    <Text style={[styles.detailItem, { color: '#fff' }]}>{item.location}</Text>
+                  </View>
+                )}
+
+                {item?.description && (
+                  <View style={styles.detailSection}>
+                    <Text style={[styles.sectionTitle, { color: '#ccc' }]}>Description</Text>
+                    <Text style={[styles.detailItem, { color: '#fff' }]}>{item.description}</Text>
                   </View>
                 )}
                 
-                {item?.type === 'event' && (
-                  <>
-                    <View style={styles.detailSection}>
-                      <Text style={styles.sectionTitle}>Description</Text>
-                      <Text style={styles.detailItem}>{item?.description || 'N/A'}</Text>
-                    </View>
-                    <View style={styles.detailSection}>
-                      <Text style={styles.sectionTitle}>Host</Text>
-                      <Text style={styles.detailItem}>{item?.host || 'N/A'}</Text>
-                    </View>
-                  </>
-                )}
-
                 <View style={styles.detailSection}>
-                  <Text style={styles.sectionTitle}>Participants</Text>
-                  <Text style={styles.detailItem}>
-                    {item?.participants?.length || 0} registered
+                  <Text style={[styles.sectionTitle, { color: '#ccc' }]}>Day</Text>
+                  <Text style={[styles.detailItem, { color: '#fff' }]}>
+                    Day {item?.day || '?'}
                   </Text>
                 </View>
               </>
@@ -608,7 +583,7 @@ const ProgramScheduleScreen = () => {
                 <TouchableOpacity
                   style={[styles.actionButton, styles.deleteButton]}
                   onPress={() => onDelete(item)}
-                  disabled={loading}
+                  disabled={loading || !item?.isEditable}
                 >
                   <Ionicons name="trash" size={20} color="white" />
                   <Text style={styles.buttonText}>Delete</Text>
@@ -616,52 +591,84 @@ const ProgramScheduleScreen = () => {
               </View>
             )}
           </View>
-      </View>
-    </Modal>
-  );
+        </View>
+      </Modal>
+    );
   };
 
-  const renderItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.itemCard}
-      onPress={() => handleSelectItem(item)}
-    >
-      <View style={styles.itemInfo}>
-        <Text style={styles.itemName}>{item.name}</Text>
+  // Render schedule item row with quick action buttons
+  const renderItem = ({ item }) => {
+    let itemTypeColor;
+    let typeLabel;
+    
+    switch(item.type) {
+      case 'session':
+        itemTypeColor = '#4a6ea9';
+        typeLabel = 'Session';
+        break;
+      case 'meal':
+        itemTypeColor = '#2ecc71';
+        typeLabel = 'Meal';
+        break;
+      case 'free':
+        itemTypeColor = '#f39c12';
+        typeLabel = 'Free Time';
+        break;
+      default:
+        itemTypeColor = '#F9A826';
+        typeLabel = 'Activity';
+    }
+    
+    return (
+      <View style={styles.itemCardContainer}>
+        <TouchableOpacity 
+          style={[styles.itemCard, { backgroundColor: '#2A2A2A' }]}
+          onPress={() => handleSelectItem(item)}
+        >
+          <View style={[styles.itemTypeIndicator, { backgroundColor: itemTypeColor }]} />
+          <View style={styles.itemInfo}>
+            <Text style={[styles.itemName, { color: '#fff' }]}>{item.title}</Text>
+            <Text style={[styles.itemTime, { color: '#ccc' }]}>
+              {item.startTime && item.endTime ? `${item.startTime} - ${item.endTime}` : 'Time not specified'}
+            </Text>
+            {item.location && (
+              <Text style={[styles.itemLocation, { color: '#999' }]}>{item.location}</Text>
+            )}
+          </View>
+          <View style={[styles.itemBadge, { backgroundColor: '#3A3A3A' }]}>
+            <Text style={[styles.itemBadgeText, { color: itemTypeColor }]}>{typeLabel}</Text>
+          </View>
+        </TouchableOpacity>
         
-        {activeTab === 'activities' ? (
-          <>
-            <Text style={styles.itemDate}>{item.date} at {item.time}</Text>
-            <Text style={styles.itemLocation}>{item.location}</Text>
-            <Text style={styles.participantCount}>
-              Participants: {item.participants.length}
-            </Text>
-          </>
-        ) : (
-          <>
-            <Text style={styles.itemInstructor}>Instructor: {item.instructor}</Text>
-            <Text style={styles.itemSchedule}>
-              {item.schedule.days.join(', ')} at {item.schedule.time}
-            </Text>
-            <Text style={styles.itemLocation}>{item.location}</Text>
-          </>
-        )}
+        <View style={styles.quickActions}>
+          <TouchableOpacity 
+            style={[styles.quickActionButton, { backgroundColor: '#4a6ea9' }]}
+            onPress={() => handleEditItem(item)}
+          >
+            <Ionicons name="pencil" size={18} color="#fff" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.quickActionButton, { backgroundColor: '#e74c3c' }]}
+            onPress={() => handleDeleteItem(item)}
+            disabled={!item.isEditable}
+          >
+            <Ionicons name="trash" size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
-      <Ionicons name="chevron-forward" size={24} color="gray" />
-    </TouchableOpacity>
-  );
+    );
+  };
 
   // Render empty state when no items are available
   const renderEmptyState = () => (
     <View style={styles.emptyStateContainer}>
-      <Ionicons name="calendar-outline" size={64} color="#ccc" />
+      <Ionicons name="calendar-outline" size={64} color="#666" />
       <Text style={styles.emptyStateTitle}>
-        No {activeTab === 'activities' ? 'Activities' : 'Classes'} Found
+        No Schedule Items Found
       </Text>
       <Text style={styles.emptyStateDescription}>
-        {searchQuery 
-          ? `No ${activeTab} match your search criteria.` 
-          : `There are no ${activeTab} available. Tap the + button to add one.`}
+        There are no schedule items available for Day {currentDay}. Tap the + button to add one.
       </Text>
     </View>
   );
@@ -669,22 +676,10 @@ const ProgramScheduleScreen = () => {
   // Render loading indicator
   const renderLoadingIndicator = () => (
     <View style={styles.loadingOverlay}>
-      <ActivityIndicator size="large" color="goldenrod" />
-      <Text style={styles.loadingText}>Loading...</Text>
+      <ActivityIndicator size="large" color="#F9A826" />
+      <Text style={[styles.loadingText, { color: '#fff' }]}>Loading...</Text>
     </View>
   );
-
-  const navigateToRoomAssignment = () => {
-    navigation.navigate('RoomAssignment');
-  };
-
-  const navigateToMentorSchedule = () => {
-    navigation.navigate('MentorSchedule');
-  };
-
-  const navigateToStudentSchedule = () => {
-    navigation.navigate('StudentSchedule');
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -693,76 +688,38 @@ const ProgramScheduleScreen = () => {
         <View style={styles.headerButtonsContainer}>
           <TouchableOpacity style={styles.addButton} onPress={handleAddItem}>
             <Ionicons name="add" size={20} color="#FFF" />
-            <Text style={styles.addButtonText}>Add</Text>
+            <Text style={styles.addButtonText}>Add Item</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.refreshButton} onPress={fetchScheduleItems}>
+            <Ionicons name="refresh" size={20} color="#FFF" />
           </TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.managementButtonsContainer}>
-        <TouchableOpacity 
-          style={styles.managementButton}
-          onPress={navigateToRoomAssignment}
-        >
-          <Ionicons name="bed-outline" size={18} color="#FFF" />
-          <Text style={styles.managementButtonText}>Room Assignments</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.managementButton}
-          onPress={navigateToMentorSchedule}
-        >
-          <Ionicons name="time-outline" size={18} color="#FFF" />
-          <Text style={styles.managementButtonText}>Mentor Schedules</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.managementButton}
-          onPress={navigateToStudentSchedule}
-        >
-          <Ionicons name="book-outline" size={18} color="#FFF" />
-          <Text style={styles.managementButtonText}>Student Classes</Text>
-        </TouchableOpacity>
-      </View>
-
       <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'activities' && styles.activeTab]}
-          onPress={() => setActiveTab('activities')}
+        <TouchableOpacity 
+          style={[styles.tab, currentDay === 1 && styles.activeTab]}
+          onPress={() => setCurrentDay(1)}
         >
-          <Text style={[styles.tabText, activeTab === 'activities' && styles.activeTabText]}>Activities</Text>
+          <Text style={[styles.tabText, currentDay === 1 && styles.activeTabText]}>
+            Day 1
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'classes' && styles.activeTab]}
-          onPress={() => setActiveTab('classes')}
+        <TouchableOpacity 
+          style={[styles.tab, currentDay === 2 && styles.activeTab]}
+          onPress={() => setCurrentDay(2)}
         >
-          <Text style={[styles.tabText, activeTab === 'classes' && styles.activeTabText]}>Classes</Text>
+          <Text style={[styles.tabText, currentDay === 2 && styles.activeTabText]}>
+            Day 2
+          </Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#AAA" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search..."
-          placeholderTextColor="#AAA"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-
-      {loading && !modalVisible && !addModalVisible ? (
+      {loading ? (
         renderLoadingIndicator()
       ) : (
         <FlatList
-          data={
-            searchQuery
-              ? items.filter(item =>
-                  item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  (item.location && item.location.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                  (activeTab === 'classes' && item.instructor && item.instructor.toLowerCase().includes(searchQuery.toLowerCase()))
-                )
-              : items
-          }
+          data={scheduleItems}
           renderItem={renderItem}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
@@ -780,11 +737,8 @@ const ProgramScheduleScreen = () => {
         loading={loading}
       />
 
-      {/* Add Modal */}
-      <AddOptionModal />
-
-      {/* Add Form Modal */}
-      <AddFormModal />
+      {/* Add/Edit Form Modal */}
+      <FormModal />
     </SafeAreaView>
   );
 };
@@ -816,32 +770,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
+    marginRight: 8,
+  },
+  refreshButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4a6ea9',
+    padding: 6,
+    borderRadius: 16,
+    width: 32,
+    height: 32,
   },
   addButtonText: {
     color: 'white',
     fontWeight: 'bold',
     marginLeft: 4,
-  },
-  managementButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 12,
-    backgroundColor: '#2A2A2A',
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-  },
-  managementButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#333',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  managementButtonText: {
-    color: 'white',
-    fontSize: 12,
-    marginLeft: 6,
   },
   tabsContainer: {
     flexDirection: 'row',
@@ -849,89 +792,127 @@ const styles = StyleSheet.create({
     borderBottomColor: '#333',
     backgroundColor: '#2A2A2A',
   },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    margin: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
+  tab: {
     flex: 1,
-    height: 40,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  activeTab: {
+    borderBottomWidth: 3,
+    borderBottomColor: '#F9A826',
+  },
+  tabText: {
+    color: '#999',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  activeTabText: {
+    color: '#F9A826',
   },
   listContent: {
     paddingHorizontal: 16,
+    paddingVertical: 16,
     paddingBottom: 80,
   },
-  itemCard: {
+  itemCardContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
     marginBottom: 12,
+    alignItems: 'center',
+  },
+  itemCard: {
+    flex: 1,
+    flexDirection: 'row',
+    borderRadius: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    overflow: 'hidden',
+  },
+  quickActions: {
+    flexDirection: 'row',
+    marginLeft: 8,
+  },
+  quickActionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 6,
+  },
+  itemTypeIndicator: {
+    width: 6,
   },
   itemInfo: {
     flex: 1,
+    padding: 12,
   },
   itemName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 4,
   },
-  itemDate: {
+  itemTime: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 4,
   },
   itemLocation: {
     fontSize: 14,
-    color: '#888',
-    marginBottom: 4,
   },
-  participantCount: {
-    fontSize: 14,
-    color: '#4a6ea9',
+  itemBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'center',
+    marginRight: 12,
+  },
+  itemBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingText: {
+    fontSize: 16,
     fontWeight: '500',
+    marginTop: 12,
   },
-  itemInstructor: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    marginTop: 50,
   },
-  itemSchedule: {
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginTop: 16,
+  },
+  emptyStateDescription: {
     fontSize: 14,
-    color: '#888',
-    marginBottom: 4,
+    color: '#aaa',
+    textAlign: 'center',
+    marginTop: 8,
+    maxWidth: '80%',
   },
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
   modalContent: {
     width: '90%',
     maxHeight: '80%',
-    backgroundColor: 'white',
     borderRadius: 10,
     padding: 20,
     shadowColor: '#000',
@@ -947,22 +928,19 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
   },
   detailSection: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#555',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   detailItem: {
     fontSize: 16,
-    color: '#333',
     marginBottom: 4,
   },
   buttonContainer: {
@@ -989,61 +967,49 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 6,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addModalContainer: {
-    width: '80%',
-    backgroundColor: 'white',
-    borderRadius: 8,
-    overflow: 'hidden',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  addModalContent: {
-    padding: 8,
-  },
-  addModalOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  addModalOptionText: {
-    fontSize: 16,
-    marginLeft: 12,
-    color: '#333',
-  },
   formGroup: {
+    marginBottom: 16,
+  },
+  formRow: {
+    flexDirection: 'row',
     marginBottom: 16,
   },
   label: {
     fontSize: 16,
     marginBottom: 8,
     fontWeight: '500',
-    color: '#333',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
   },
   textArea: {
     height: 100,
     textAlignVertical: 'top',
   },
+  typeSelector: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  typeOption: {
+    flex: 1,
+    padding: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    marginRight: 8,
+    borderRadius: 8,
+  },
+  selectedType: {
+    backgroundColor: '#F9A826',
+    borderColor: '#F9A826',
+  },
+  selectedTypeText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
   submitButton: {
-    backgroundColor: '#4a6ea9',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
@@ -1060,38 +1026,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: 200,
-  },
-  loadingText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-    marginTop: 12,
-  },
-  emptyStateContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 16,
-  },
-  emptyStateDescription: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 8,
-    maxWidth: '80%',
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
   },
 });
 

@@ -5,6 +5,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-gesture-handler';
 // Import Firebase config from utils (remove direct firebase imports)
 
+// Import Schedule Service
+import { initializeSchedule } from './src/utils/scheduleService';
+
 // Context
 import { AuthProvider } from './src/context/AuthContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
@@ -29,12 +32,25 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate auth check
-    setTimeout(() => {
-      setIsLoading(false);
-      // For testing, set to null to start with auth screens
-      setUserRole(null);
-    }, 1000);
+    // Initialize the app and schedule
+    const initialize = async () => {
+      try {
+        // Initialize the default schedule
+        await initializeSchedule();
+        console.log('Schedule initialization completed');
+      } catch (error) {
+        console.error('Error during initialization:', error);
+      } finally {
+        // Complete initialization and simulate auth check
+        setTimeout(() => {
+          setIsLoading(false);
+          // For testing, set to null to start with auth screens
+          setUserRole(null);
+        }, 1000);
+      }
+    };
+    
+    initialize();
   }, []);
 
   const handleLogin = (role, data = {}) => {
