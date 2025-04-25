@@ -50,6 +50,10 @@
       <key>NSAllowsLocalNetworking</key>
       <true/>
     </dict>
+    <key>NSDocumentPickerUsageDescription</key>
+    <string>Allow GTG to access documents for importing user data</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Allow GTG to access your photo library to select documents and photos</string>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
     <key>UIRequiredDeviceCapabilities</key>

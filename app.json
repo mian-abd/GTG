@@ -14,17 +14,33 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.depauw.gtg"
+      "bundleIdentifier": "com.depauw.gtg",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Allow GTG to access your photo library to select documents and photos",
+        "NSDocumentPickerUsageDescription": "Allow GTG to access documents for importing user data"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.depauw.gtg"
+      "package": "com.depauw.gtg",
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
+        }
+      ]
+    ]
   }
 }

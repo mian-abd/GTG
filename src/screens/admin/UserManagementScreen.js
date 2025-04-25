@@ -206,162 +206,114 @@ const UserManagementScreen = () => {
       setIsLoading(true);
       console.log('Starting file selection...');
       
-      // Set up a timeout to prevent the UI from being stuck in loading state
-      const timeoutId = setTimeout(() => {
-        console.log('Document picker timeout - resetting loading state');
-        setIsLoading(false);
-        Alert.alert(
-          'Operation Timed Out', 
-          'The file picker took too long to respond. Please try again.'
-        );
-      }, 10000); // 10 second timeout
-      
-      // Use a slightly different approach for the document picker
-      let result;
+      // Use document picker with proper error handling
       try {
-        if (Platform.OS === 'ios') {
-          // iOS specific approach
-          result = await DocumentPicker.getDocumentAsync({
-            type: ['public.comma-separated-values-text', 'public.spreadsheet'],
-            copyToCacheDirectory: true
-          });
-        } else {
-          // Android approach
-          result = await DocumentPicker.getDocumentAsync({
-            type: ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv'],
-            copyToCacheDirectory: true
-          });
-        }
+        const result = await DocumentPicker.getDocumentAsync({
+          copyToCacheDirectory: true,
+          multiple: false // Only allow selecting one file
+        });
         
-        // Clear the timeout since the picker responded
-        clearTimeout(timeoutId);
+        console.log('Document picker result:', result);
+
+        if (result.canceled || !result.assets || result.assets.length === 0) {
+          console.log('File selection was canceled or returned no assets');
+          setIsLoading(false);
+          return;
+        }
+
+        const file = result.assets[0];
+        console.log('Selected file:', file);
+
+        // Process the file
+        if (!file.uri) {
+          Alert.alert('Error', 'Could not access the selected file');
+          setIsLoading(false);
+          return;
+        }
+
+        // Extract file extension
+        const fileType = file.name ? file.name.split('.').pop().toLowerCase() : '';
+        console.log('File type:', fileType);
+        
+        if (fileType === 'csv') {
+          // Handle CSV files
+          try {
+            const fileContent = await FileSystem.readAsStringAsync(file.uri);
+            Papa.parse(fileContent, {
+              header: true,
+              complete: async (results) => {
+                console.log('Parsed CSV data:', results.data);
+                await processUserData(results.data);
+              },
+              error: (error) => {
+                console.error('CSV parsing error:', error);
+                Alert.alert('Error', 'Failed to parse CSV file');
+                setIsLoading(false);
+              }
+            });
+          } catch (readError) {
+            console.error('Error reading CSV file:', readError);
+            Alert.alert('Error', `Failed to read CSV file: ${readError.message}`);
+            setIsLoading(false);
+          }
+        } else if (fileType === 'xlsx' || fileType === 'xls') {
+          // Handle Excel files
+          try {
+            console.log('Reading Excel file...');
+            const base64 = await FileSystem.readAsStringAsync(file.uri, {
+              encoding: FileSystem.EncodingType.Base64
+            });
+            
+            const workbook = XLSX.read(base64, { type: 'base64' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            
+            // Convert to JSON with headers
+            const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            
+            if (!data || data.length <= 1) {
+              Alert.alert('Error', 'No valid data found in the Excel file');
+              setIsLoading(false);
+              return;
+            }
+            
+            // Get headers from first row
+            const headers = data[0];
+            
+            // Map data to object with headers as keys
+            const userData = [];
+            for (let i = 1; i < data.length; i++) {
+              const row = data[i];
+              if (row.length === 0) continue; // Skip empty rows
+              
+              const user = {};
+              for (let j = 0; j < headers.length; j++) {
+                user[headers[j]] = row[j] || '';
+              }
+              
+              // Create name from first and last name if available
+              if (!user.name && (user.firstName || user.lastName || user['First Name'] || user['Last Name'])) {
+                const firstName = user.firstName || user['First Name'] || '';
+                const lastName = user.lastName || user['Last Name'] || '';
+                user.name = `${firstName} ${lastName}`.trim();
+              }
+              
+              userData.push(user);
+            }
+            
+            await processUserData(userData);
+          } catch (error) {
+            console.error('Excel parsing error:', error);
+            Alert.alert('Error', `Failed to parse Excel file: ${error.message}`);
+            setIsLoading(false);
+          }
+        } else {
+          Alert.alert('Error', 'Unsupported file format. Please use .csv, .xlsx or .xls files.');
+          setIsLoading(false);
+        }
       } catch (pickerError) {
-        clearTimeout(timeoutId);
         console.error('Document picker error:', pickerError);
         Alert.alert('Error', `Could not open file picker: ${pickerError.message}`);
-        setIsLoading(false);
-        return;
-      }
-
-      console.log('Document picker result:', result);
-
-      if (!result || result.canceled) {
-        console.log('File selection was canceled or returned null');
-        setIsLoading(false);
-        return;
-      }
-
-      // Get the selected file
-      if (!result.assets || result.assets.length === 0) {
-        console.log('No file was selected');
-        Alert.alert('Error', 'No file was selected');
-        setIsLoading(false);
-        return;
-      }
-      
-      const file = result.assets[0];
-      console.log('Selected file:', file);
-
-      if (!file.uri) {
-        console.log('File URI is missing');
-        Alert.alert('Error', 'Could not access the selected file');
-        setIsLoading(false);
-        return;
-      }
-
-      // Check if the file is a CSV or Excel file
-      const fileType = file.name ? file.name.split('.').pop().toLowerCase() : '';
-      console.log('File type:', fileType);
-      
-      if (fileType === 'csv') {
-        // Read the CSV file
-        console.log('Reading CSV file...');
-        try {
-          const fileContent = await FileSystem.readAsStringAsync(file.uri);
-          
-          // Parse CSV content
-          Papa.parse(fileContent, {
-            header: true,
-            complete: async (results) => {
-              console.log('Parsed CSV data:', results.data);
-              await processUserData(results.data);
-            },
-            error: (error) => {
-              console.error('CSV parsing error:', error);
-              Alert.alert('Error', 'Failed to parse CSV file');
-              setIsLoading(false);
-            }
-          });
-        } catch (readError) {
-          console.error('Error reading CSV file:', readError);
-          Alert.alert('Error', `Failed to read CSV file: ${readError.message}`);
-          setIsLoading(false);
-        }
-      } else if (fileType === 'xlsx' || fileType === 'xls') {
-        // Handle Excel files
-        try {
-          console.log('Reading Excel file...');
-          // Read the file as base64
-          const base64 = await FileSystem.readAsStringAsync(file.uri, {
-            encoding: FileSystem.EncodingType.Base64
-          });
-          
-          console.log('File read as base64, parsing Excel content...');
-          // Parse Excel content
-          const workbook = XLSX.read(base64, { type: 'base64' });
-          
-          // Get the first worksheet
-          const firstSheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[firstSheetName];
-          
-          console.log('Worksheet loaded, converting to data...');
-          
-          // Get cell values directly for headers (assuming row 1 has headers)
-          const headers = [];
-          const range = XLSX.utils.decode_range(worksheet['!ref']);
-          
-          // Log the range to understand the sheet structure
-          console.log('Sheet range:', range);
-          
-          // For Excel files with data starting at A2 (row 2)
-          // We'll process it directly rather than using sheet_to_json
-          const userData = [];
-          
-          // Start from row 2 (index 1) if there are headers in row 1
-          for (let row = 1; row <= range.e.r; row++) {
-            const firstName = worksheet[XLSX.utils.encode_cell({r: row, c: 0})]?.v || '';
-            const lastName = worksheet[XLSX.utils.encode_cell({r: row, c: 1})]?.v || '';
-            const email = worksheet[XLSX.utils.encode_cell({r: row, c: 2})]?.v || '';
-            const phone = worksheet[XLSX.utils.encode_cell({r: row, c: 3})]?.v || '';
-            const address = worksheet[XLSX.utils.encode_cell({r: row, c: 4})]?.v || '';
-            const notes = worksheet[XLSX.utils.encode_cell({r: row, c: 5})]?.v || '';
-            
-            // Skip empty rows
-            if (!firstName && !lastName && !email) continue;
-            
-            // Combine first and last name
-            const name = `${firstName} ${lastName}`.trim();
-            
-            userData.push({
-              name,
-              email,
-              phone,
-              address,
-              notes
-            });
-          }
-          
-          console.log('Processed Excel data:', userData);
-          
-          // Process the data
-          await processUserData(userData);
-        } catch (error) {
-          console.error('Excel parsing error:', error);
-          Alert.alert('Error', `Failed to parse Excel file: ${error.message}`);
-          setIsLoading(false);
-        }
-      } else {
-        Alert.alert('Error', 'Unsupported file format. Please use .csv, .xlsx or .xls files.');
         setIsLoading(false);
       }
     } catch (error) {
@@ -512,7 +464,7 @@ const UserManagementScreen = () => {
               }}
             >
               <Ionicons name="document-outline" size={22} color="#333" />
-              <Text style={styles.modalOptionText}>Import from Excel</Text>
+              <Text style={styles.modalOptionText}>Select File</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
