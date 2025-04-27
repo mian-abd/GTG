@@ -4,10 +4,139 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 // Import Firebase functions
-import { getDocuments, updateDocument, deleteDocument, addDocument } from '../../utils/firebaseConfig';
+import { getDocuments, updateDocument, deleteDocument, addDocument, db } from '../../utils/firebaseConfig';
+import { generateUniqueToken } from '../../utils/tokenService';
 
 // Import demo data
 import { MENTORS } from '../../utils/demoData';
+
+// Create a separate component for the Add Mentor Form to isolate state management
+const AddMentorForm = ({ visible, onClose, onSubmit, isLoading }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    department: '',
+    biography: '',
+    students: []
+  });
+
+  // Only one update function for all fields
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSubmit = () => {
+    onSubmit(formData);
+  };
+
+  // Reset form when modal closes
+  const handleClose = () => {
+    setFormData({
+      name: '',
+      email: '',
+      department: '',
+      biography: '',
+      students: []
+    });
+    onClose();
+  };
+
+  return (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={visible}
+      onRequestClose={handleClose}
+    >
+      <View style={styles.editModalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardAvoidingContainer}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+          enabled={Platform.OS === 'ios'}
+        >
+          <View style={styles.editModalContainer}>
+            <View style={styles.editModalHeader}>
+              <Text style={styles.editModalTitle}>Add New Mentor</Text>
+              <TouchableOpacity 
+                onPress={handleClose}
+                hitSlop={{top: 20, right: 20, bottom: 20, left: 20}}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView 
+              contentContainerStyle={styles.editModalContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.inputLabel}>Name *</Text>
+              <TextInput
+                style={styles.editInput}
+                value={formData.name}
+                onChangeText={(text) => handleInputChange('name', text)}
+                placeholder="Enter name"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.inputLabel}>Email *</Text>
+              <TextInput
+                style={styles.editInput}
+                value={formData.email}
+                onChangeText={(text) => handleInputChange('email', text)}
+                placeholder="Enter email"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.inputLabel}>Department *</Text>
+              <TextInput
+                style={styles.editInput}
+                value={formData.department}
+                onChangeText={(text) => handleInputChange('department', text)}
+                placeholder="Enter department"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.inputLabel}>Biography</Text>
+              <TextInput
+                style={[styles.editInput, styles.notesInput]}
+                value={formData.biography}
+                onChangeText={(text) => handleInputChange('biography', text)}
+                placeholder="Enter biography"
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                blurOnSubmit={true}
+              />
+              
+              <TouchableOpacity 
+                style={styles.saveButton}
+                onPress={handleSubmit}
+                disabled={isLoading}
+                activeOpacity={0.7}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Add Mentor</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
+  );
+};
 
 const ManageMentorsScreen = () => {
   const [mentors, setMentors] = useState([]);
@@ -25,13 +154,14 @@ const ManageMentorsScreen = () => {
   const [editDepartment, setEditDepartment] = useState('');
   const [editBiography, setEditBiography] = useState('');
   
-  const [newMentor, setNewMentor] = useState({
-    name: '',
-    email: '',
-    department: '',
-    biography: '',
-    students: []
-  });
+  // Open add form with a delay to ensure smooth transition
+  const openAddMentorForm = () => {
+    setAddModalVisible(false);
+    // Use a timeout to ensure the first modal is completely closed
+    setTimeout(() => {
+      setAddFormVisible(true);
+    }, 300);
+  };
   
   // Fetch mentors from Firebase
   useEffect(() => {
@@ -197,10 +327,10 @@ const ManageMentorsScreen = () => {
     );
   };
 
-  // Handle add mentor form submit
-  const handleAddMentorSubmit = async () => {
+  // Modified to accept form data directly and add token generation
+  const handleAddMentorSubmit = async (formData) => {
     // Validate form
-    if (!newMentor.name || !newMentor.email || !newMentor.department) {
+    if (!formData.name || !formData.email || !formData.department) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
@@ -211,39 +341,110 @@ const ManageMentorsScreen = () => {
       // Close modal first to prevent UI freezing
       setAddFormVisible(false);
       
-      // Add to Firebase
+      // Generate a token for login that never expires
+      const token = generateUniqueToken();
+      
+      // Set token expiration 100 years in the future
+      const tokenExpires = new Date();
+      tokenExpires.setFullYear(tokenExpires.getFullYear() + 100);
+      
+      // Add to Firebase with token
       const mentorId = await addDocument('mentors', {
-        ...newMentor,
+        ...formData,
+        verificationToken: token,
+        tokenCreatedAt: new Date().toISOString(),
+        tokenExpires: tokenExpires,
+        isVerified: true,
+        status: 'active',
+        role: 'mentor',
         createdAt: new Date().toISOString()
       });
       
       // Update local state
       const addedMentor = {
         id: mentorId,
-        ...newMentor,
+        ...formData,
+        verificationToken: token,
+        tokenCreatedAt: new Date().toISOString(),
+        tokenExpires: tokenExpires,
+        isVerified: true,
+        status: 'active',
+        role: 'mentor',
         createdAt: new Date().toISOString()
       };
       
       setMentors(prev => [...prev, addedMentor]);
       
-      // Reset form
-      setNewMentor({
-        name: '',
-        email: '',
-        department: '',
-        biography: '',
-        students: []
-      });
-      
       // Show success message after small delay
       setTimeout(() => {
-        Alert.alert('Success', 'Mentor added successfully');
+        Alert.alert(
+          'Success', 
+          `Mentor added successfully.\n\nLogin Token: ${token}\n\nPlease share this token with the mentor. They will use it to log in.`
+        );
       }, 300);
       
     } catch (error) {
       console.error('Error adding mentor:', error);
       setTimeout(() => {
         Alert.alert('Error', 'Failed to add mentor: ' + error.message);
+      }, 300);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Function to generate login token for existing mentor
+  const handleGenerateToken = async (mentor) => {
+    try {
+      setIsLoading(true);
+      setModalVisible(false);
+      
+      // Generate a token for login that never expires
+      const token = generateUniqueToken();
+      
+      // Set token expiration 100 years in the future
+      const tokenExpires = new Date();
+      tokenExpires.setFullYear(tokenExpires.getFullYear() + 100);
+      
+      // Update the document in Firestore
+      const result = await updateDocument('mentors', mentor.id, {
+        verificationToken: token,
+        tokenCreatedAt: new Date().toISOString(),
+        tokenExpires: tokenExpires,
+        isVerified: true,
+        status: 'active',
+        updatedAt: new Date().toISOString()
+      });
+      
+      if (result) {
+        // Update the mentor in local state
+        setMentors(prevMentors => prevMentors.map(m => 
+          m.id === mentor.id ? { 
+            ...m, 
+            verificationToken: token,
+            tokenCreatedAt: new Date().toISOString(),
+            tokenExpires: tokenExpires,
+            isVerified: true,
+            status: 'active' 
+          } : m
+        ));
+        
+        // Show token to admin
+        setTimeout(() => {
+          Alert.alert(
+            'Login Token Generated', 
+            `Token for ${mentor.name}: ${token}\n\nPlease share this token with the mentor. They will use it to log in.`
+          );
+        }, 300);
+      } else {
+        setTimeout(() => {
+          Alert.alert('Error', 'Failed to generate token');
+        }, 300);
+      }
+    } catch (error) {
+      console.error('Error generating token:', error);
+      setTimeout(() => {
+        Alert.alert('Error', 'Failed to generate token: ' + error.message);
       }, 300);
     } finally {
       setIsLoading(false);
@@ -339,100 +540,6 @@ const ManageMentorsScreen = () => {
     }
   };
 
-  // Add mentor form modal
-  const AddMentorFormModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={addFormVisible}
-      onRequestClose={() => setAddFormVisible(false)}
-    >
-      <View style={styles.editModalOverlay}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.keyboardAvoidingContainer}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-          enabled={Platform.OS === 'ios'}
-        >
-          <View style={styles.editModalContainer}>
-            <View style={styles.editModalHeader}>
-              <Text style={styles.editModalTitle}>Add New Mentor</Text>
-              <TouchableOpacity 
-                onPress={() => setAddFormVisible(false)}
-                hitSlop={{top: 20, right: 20, bottom: 20, left: 20}}
-              >
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView 
-              contentContainerStyle={styles.editModalContent}
-              keyboardShouldPersistTaps="always"
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={styles.inputLabel}>Name *</Text>
-              <TextInput
-                style={styles.editInput}
-                value={newMentor.name}
-                onChangeText={(text) => setNewMentor(prev => ({ ...prev, name: text }))}
-                placeholder="Enter name"
-                returnKeyType="next"
-                blurOnSubmit={false}
-              />
-              
-              <Text style={styles.inputLabel}>Email *</Text>
-              <TextInput
-                style={styles.editInput}
-                value={newMentor.email}
-                onChangeText={(text) => setNewMentor(prev => ({ ...prev, email: text }))}
-                placeholder="Enter email"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                returnKeyType="next"
-                blurOnSubmit={false}
-              />
-              
-              <Text style={styles.inputLabel}>Department *</Text>
-              <TextInput
-                style={styles.editInput}
-                value={newMentor.department}
-                onChangeText={(text) => setNewMentor(prev => ({ ...prev, department: text }))}
-                placeholder="Enter department"
-                returnKeyType="next"
-                blurOnSubmit={false}
-              />
-              
-              <Text style={styles.inputLabel}>Biography</Text>
-              <TextInput
-                style={[styles.editInput, styles.notesInput]}
-                value={newMentor.biography}
-                onChangeText={(text) => setNewMentor(prev => ({ ...prev, biography: text }))}
-                placeholder="Enter biography"
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-                blurOnSubmit={true}
-              />
-              
-              <TouchableOpacity 
-                style={styles.saveButton}
-                onPress={handleAddMentorSubmit}
-                disabled={isLoading}
-                activeOpacity={0.7}
-              >
-                {isLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.saveButtonText}>Add Mentor</Text>
-                )}
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
-  );
-
   // Add Option Modal
   const AddOptionModal = () => (
     <Modal
@@ -450,10 +557,7 @@ const ManageMentorsScreen = () => {
           <View style={styles.addModalContent}>
             <TouchableOpacity 
               style={styles.addModalOption}
-              onPress={() => {
-                setAddModalVisible(false);
-                setAddFormVisible(true);
-              }}
+              onPress={openAddMentorForm}
             >
               <Ionicons name="person-add-outline" size={22} color="#333" />
               <Text style={styles.addModalOptionText}>Add Mentor Manually</Text>
@@ -556,6 +660,11 @@ const ManageMentorsScreen = () => {
                       Last Updated: {new Date(selectedMentor.updatedAt).toLocaleDateString()}
                     </Text>
                   )}
+                  {selectedMentor.verificationToken && (
+                    <Text style={styles.detailItem}>
+                      Has Login Token: Yes
+                    </Text>
+                  )}
                 </View>
 
                 <View style={styles.buttonContainer}>
@@ -566,6 +675,15 @@ const ManageMentorsScreen = () => {
                     <Ionicons name="create-outline" size={18} color="white" />
                     <Text style={styles.buttonText}>Edit</Text>
                   </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[styles.actionButton, styles.tokenButton]}
+                    onPress={() => handleGenerateToken(selectedMentor)}
+                  >
+                    <Ionicons name="key-outline" size={18} color="white" />
+                    <Text style={styles.buttonText}>Generate Token</Text>
+                  </TouchableOpacity>
+                  
                   <TouchableOpacity 
                     style={[styles.actionButton, styles.deleteButton]}
                     onPress={() => handleDeleteMentor(selectedMentor)}
@@ -756,9 +874,14 @@ const ManageMentorsScreen = () => {
         </View>
       )}
 
-      <MentorDetailModal />
       <AddOptionModal />
-      <AddMentorFormModal />
+      <MentorDetailModal />
+      <AddMentorForm 
+        visible={addFormVisible} 
+        onClose={() => setAddFormVisible(false)} 
+        onSubmit={handleAddMentorSubmit}
+        isLoading={isLoading}
+      />
       <EditMentorModal />
     </SafeAreaView>
   );
@@ -1132,6 +1255,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
+  },
+  tokenButton: {
+    backgroundColor: '#ff9800', // Orange color for the token button
   },
 });
 

@@ -87,40 +87,6 @@ const ProfileScreen = () => {
     }
   };
   
-  // Progress sections
-  const renderProgressSection = () => (
-    <View style={[styles.sectionCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Program Progress</Text>
-      </View>
-      
-      <View style={styles.progressContainer}>
-        <View style={[styles.progressBarContainer, { backgroundColor: theme.colors.background.tertiary }]}>
-          <View style={[styles.progressBar, { width: `${currentStudent.progress}%` }]} />
-        </View>
-        <Text style={[styles.progressText, { color: theme.colors.text.secondary }]}>{currentStudent.progress}% Complete</Text>
-      </View>
-      
-      {/* Course completion badges could go here */}
-      <View style={styles.badgesContainer}>
-        <View style={[styles.badge, { backgroundColor: theme.colors.background.tertiary }]}>
-          <Ionicons name="school" size={22} color={theme.colors.primary} />
-          <Text style={[styles.badgeText, { color: theme.colors.text.primary }]}>Academic</Text>
-        </View>
-        
-        <View style={[styles.badge, { backgroundColor: theme.colors.background.tertiary }]}>
-          <Ionicons name="people" size={22} color={theme.colors.primary} />
-          <Text style={[styles.badgeText, { color: theme.colors.text.primary }]}>Social</Text>
-        </View>
-        
-        <View style={[styles.badge, { backgroundColor: theme.colors.background.tertiary }]}>
-          <Ionicons name="construct" size={22} color={theme.colors.primary} />
-          <Text style={[styles.badgeText, { color: theme.colors.text.primary }]}>Skills</Text>
-        </View>
-      </View>
-    </View>
-  );
-  
   // Room and schedule section
   const renderRoomScheduleSection = () => (
     <View style={[styles.sectionCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
@@ -262,7 +228,6 @@ const ProfileScreen = () => {
           <Text style={[styles.profileEmail, { color: theme.colors.text.secondary }]}>{currentStudent.email}</Text>
         </View>
         
-        {renderProgressSection()}
         {renderRoomScheduleSection()}
         {renderSettingsSection()}
         {renderActionsSection()}
@@ -369,40 +334,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-  },
-  progressContainer: {
-    marginBottom: 16,
-  },
-  progressBarContainer: {
-    height: 12,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 6,
-    marginBottom: 8,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#4e73df',
-    borderRadius: 6,
-  },
-  progressText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'right',
-  },
-  badgesContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 8,
-  },
-  badge: {
-    alignItems: 'center',
-    padding: 12,
-  },
-  badgeText: {
-    fontSize: 12,
-    marginTop: 4,
-    color: '#666',
   },
   infoRow: {
     flexDirection: 'row',
