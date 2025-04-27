@@ -7,7 +7,9 @@ import {
   ScrollView, 
   Image,
   SafeAreaView,
-  StatusBar
+  StatusBar,
+  Linking,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -35,8 +37,21 @@ const VisitorHomeScreen = () => {
     // Navigate to About section
   };
 
-  const handleBrowsePaths = () => {
-    navigation.navigate('ExploreTab');
+  const handleBrowsePaths = async () => {
+    // Open DePauw University majors and minors webpage in browser
+    const url = 'https://www.depauw.edu/academics/majors-and-minors/';
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        console.log("Cannot open URL: " + url);
+        Alert.alert("Error", "Cannot open the DePauw website");
+      }
+    } catch (error) {
+      console.error("Error opening URL:", error);
+      Alert.alert("Error", "Cannot open the DePauw website");
+    }
   };
 
   const handleMeetMentors = () => {
