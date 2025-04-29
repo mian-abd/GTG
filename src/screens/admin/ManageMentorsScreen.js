@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, StatusBar, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
-// Import Firebase functions
-import { getDocuments, updateDocument, deleteDocument, addDocument, db } from '../../utils/firebaseConfig';
+import { useNavigation } from '@react-navigation/native';
+import { addDocument, getDocuments, updateDocument, deleteDocument, db } from '../../utils/firebaseConfig';
+import { collection, query, getDocs, where } from 'firebase/firestore';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import Papa from 'papaparse';
+import XLSX from 'xlsx';
 import { generateUniqueToken } from '../../utils/tokenService';
 
 // Import demo data
@@ -540,6 +543,257 @@ const ManageMentorsScreen = () => {
     }
   };
 
+  const handleImportExcel = async () => {
+    try {
+      setIsLoading(true);
+      console.log('Starting file selection for mentors...');
+      
+      try {
+        const result = await DocumentPicker.getDocumentAsync({
+          copyToCacheDirectory: true,
+          type: ["application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "text/csv"],
+          multiple: false
+        });
+        
+        console.log('Document picker result:', JSON.stringify(result));
+
+        if (result.canceled || !result.assets || result.assets.length === 0) {
+          console.log('File selection was canceled or returned no assets');
+          setIsLoading(false);
+          return;
+        }
+
+        const file = result.assets[0];
+        console.log('Selected file:', JSON.stringify(file));
+
+        // Process the file
+        if (!file.uri) {
+          Alert.alert('Error', 'Could not access the selected file');
+          setIsLoading(false);
+          return;
+        }
+
+        // Extract file extension
+        const fileType = file.name ? file.name.split('.').pop().toLowerCase() : '';
+        console.log('File type:', fileType);
+        
+        if (fileType === 'csv') {
+          // Handle CSV files
+          try {
+            const fileContent = await FileSystem.readAsStringAsync(file.uri);
+            Papa.parse(fileContent, {
+              header: true,
+              complete: async (results) => {
+                console.log('Parsed CSV data:', results.data);
+                await processMentorData(results.data);
+              },
+              error: (error) => {
+                console.error('CSV parsing error:', error);
+                Alert.alert('Error', 'Failed to parse CSV file');
+                setIsLoading(false);
+              }
+            });
+          } catch (readError) {
+            console.error('Error reading CSV file:', readError);
+            Alert.alert('Error', `Failed to read CSV file: ${readError.message}`);
+            setIsLoading(false);
+          }
+        } else if (fileType === 'xlsx' || fileType === 'xls') {
+          // Handle Excel files
+          try {
+            console.log('Reading Excel file...');
+            const base64 = await FileSystem.readAsStringAsync(file.uri, {
+              encoding: FileSystem.EncodingType.Base64
+            });
+            
+            console.log('File converted to base64, length:', base64.length);
+            
+            const workbook = XLSX.read(base64, { type: 'base64' });
+            console.log('Workbook sheets:', workbook.SheetNames);
+            
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            
+            // Convert to JSON with headers
+            const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            console.log('Parsed Excel data rows:', data.length);
+            
+            if (!data || data.length <= 1) {
+              Alert.alert('Error', 'No valid data found in the Excel file');
+              setIsLoading(false);
+              return;
+            }
+            
+            // Get headers from first row
+            const headers = data[0];
+            console.log('Headers:', headers);
+            
+            // Map data to object with headers as keys
+            const mentorData = [];
+            for (let i = 1; i < data.length; i++) {
+              const row = data[i];
+              if (row.length === 0) continue; // Skip empty rows
+              
+              const mentor = {};
+              for (let j = 0; j < headers.length; j++) {
+                mentor[headers[j]] = row[j] || '';
+              }
+              
+              // Create name from first and last name if available
+              if (!mentor.name && (mentor.firstName || mentor.lastName || mentor['First Name'] || mentor['Last Name'])) {
+                const firstName = mentor.firstName || mentor['First Name'] || '';
+                const lastName = mentor.lastName || mentor['Last Name'] || '';
+                mentor.name = `${firstName} ${lastName}`.trim();
+              }
+              
+              mentorData.push(mentor);
+            }
+            
+            console.log('Processed mentor data objects:', mentorData.length);
+            await processMentorData(mentorData);
+          } catch (error) {
+            console.error('Excel parsing error:', error);
+            Alert.alert('Error', `Failed to parse Excel file: ${error.message}`);
+            setIsLoading(false);
+          }
+        } else {
+          Alert.alert('Error', 'Unsupported file format. Please use .csv, .xlsx or .xls files.');
+          setIsLoading(false);
+        }
+      } catch (pickerError) {
+        console.error('Document picker error:', pickerError);
+        Alert.alert('Error', `Could not open file picker: ${pickerError.message}`);
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error('Error importing file:', error);
+      Alert.alert('Error', `Failed to import file: ${error.message}`);
+      setIsLoading(false);
+    }
+  };
+
+  const processMentorData = async (mentorData) => {
+    try {
+      console.log('Processing mentor data:', mentorData);
+      if (!mentorData || mentorData.length === 0) {
+        Alert.alert('Error', 'No data found in the file');
+        setIsLoading(false);
+        return;
+      }
+
+      // Check for valid data structure
+      let validMentors = [];
+      
+      for (const mentor of mentorData) {
+        // Check if we can get name and email
+        const email = mentor.email;
+        let name = mentor.name;
+        
+        // If we don't have a name but have firstName/lastName
+        if (!name && (mentor.firstName || mentor.lastName)) {
+          name = `${mentor.firstName || ''} ${mentor.lastName || ''}`.trim();
+        }
+        
+        if (name && email) {
+          validMentors.push({
+            ...mentor,
+            name,
+            email,
+            department: mentor.department || '',
+            biography: mentor.biography || ''
+          });
+        }
+      }
+      
+      if (validMentors.length === 0) {
+        Alert.alert('Error', 'No valid mentor data found in the file. Make sure your file has name and email columns.');
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('Valid mentors found:', validMentors.length);
+      
+      try {
+        // Import mentors to Firebase
+        const importedCount = await importMentorsToFirebase(validMentors);
+        
+        // Refresh the mentor list
+        await fetchMentors();
+        
+        Alert.alert('Success', `Successfully imported ${importedCount} mentors`);
+      } catch (importError) {
+        console.error('Error during import to Firebase:', importError);
+        Alert.alert('Error', `Failed to import mentors: ${importError.message}`);
+      } finally {
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error('Error processing mentor data:', error);
+      Alert.alert('Error', 'Failed to process mentor data: ' + error.message);
+      setIsLoading(false);
+    }
+  };
+
+  const importMentorsToFirebase = async (mentors) => {
+    let importedCount = 0;
+    
+    try {
+      // Get existing emails to prevent duplicates
+      console.log('Fetching existing mentors to check for duplicates...');
+      const q = query(collection(db, 'mentors'));
+      const querySnapshot = await getDocs(q);
+      const existingEmails = {};
+      
+      querySnapshot.forEach((doc) => {
+        const mentorData = doc.data();
+        if (mentorData.email) {
+          existingEmails[mentorData.email.toLowerCase()] = true;
+        }
+      });
+      
+      console.log(`Found ${Object.keys(existingEmails).length} existing mentors`);
+
+      // Process each mentor
+      console.log(`Starting import of ${mentors.length} mentors...`);
+      for (const mentor of mentors) {
+        // Skip if email already exists
+        if (existingEmails[mentor.email.toLowerCase()]) {
+          console.log(`Skipping duplicate email: ${mentor.email}`);
+          continue;
+        }
+        
+        // Prepare mentor data
+        const mentorData = {
+          name: mentor.name,
+          email: mentor.email,
+          department: mentor.department || '',
+          biography: mentor.biography || '',
+          role: 'mentor',
+          status: 'active',
+          students: [],
+          createdAt: new Date().toISOString(),
+        };
+        
+        try {
+          // Add the mentor to Firestore
+          console.log(`Adding mentor: ${mentor.name}`);
+          await addDocument('mentors', mentorData);
+          importedCount++;
+          console.log(`Successfully added mentor: ${mentor.name}`);
+        } catch (addError) {
+          console.error(`Error adding individual mentor ${mentor.name}:`, addError);
+          // Continue with next mentor instead of failing the whole batch
+        }
+      }
+      
+      console.log(`Successfully imported ${importedCount} mentors`);
+      return importedCount;
+    } catch (error) {
+      console.error('Error importing mentors to Firebase:', error);
+      throw error;
+    }
+  };
+
   // Add Option Modal
   const AddOptionModal = () => (
     <Modal
@@ -567,8 +821,10 @@ const ManageMentorsScreen = () => {
               style={styles.addModalOption}
               onPress={() => {
                 setAddModalVisible(false);
-                // Import from Excel
-                Alert.alert('Import from Excel', 'This functionality will be implemented soon.');
+                // Add a small delay before opening the picker to ensure the modal is closed
+                setTimeout(() => {
+                  handleImportExcel();
+                }, 300);
               }}
             >
               <Ionicons name="document-outline" size={22} color="#333" />
@@ -871,6 +1127,7 @@ const ManageMentorsScreen = () => {
       {isLoading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.loadingText}>Processing...</Text>
         </View>
       )}
 
@@ -1251,7 +1508,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,

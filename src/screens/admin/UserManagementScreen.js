@@ -210,10 +210,11 @@ const UserManagementScreen = () => {
       try {
         const result = await DocumentPicker.getDocumentAsync({
           copyToCacheDirectory: true,
+          type: ["application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "text/csv"],
           multiple: false // Only allow selecting one file
         });
         
-        console.log('Document picker result:', result);
+        console.log('Document picker result:', JSON.stringify(result));
 
         if (result.canceled || !result.assets || result.assets.length === 0) {
           console.log('File selection was canceled or returned no assets');
@@ -222,7 +223,7 @@ const UserManagementScreen = () => {
         }
 
         const file = result.assets[0];
-        console.log('Selected file:', file);
+        console.log('Selected file:', JSON.stringify(file));
 
         // Process the file
         if (!file.uri) {
@@ -239,10 +240,12 @@ const UserManagementScreen = () => {
           // Handle CSV files
           try {
             const fileContent = await FileSystem.readAsStringAsync(file.uri);
+            console.log('CSV file content length:', fileContent.length);
+            
             Papa.parse(fileContent, {
               header: true,
               complete: async (results) => {
-                console.log('Parsed CSV data:', results.data);
+                console.log('Parsed CSV data rows:', results.data.length);
                 await processUserData(results.data);
               },
               error: (error) => {
@@ -264,12 +267,17 @@ const UserManagementScreen = () => {
               encoding: FileSystem.EncodingType.Base64
             });
             
+            console.log('File converted to base64, length:', base64.length);
+            
             const workbook = XLSX.read(base64, { type: 'base64' });
+            console.log('Workbook sheets:', workbook.SheetNames);
+            
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             
             // Convert to JSON with headers
             const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            console.log('Parsed Excel data rows:', data.length);
             
             if (!data || data.length <= 1) {
               Alert.alert('Error', 'No valid data found in the Excel file');
@@ -279,6 +287,7 @@ const UserManagementScreen = () => {
             
             // Get headers from first row
             const headers = data[0];
+            console.log('Headers:', headers);
             
             // Map data to object with headers as keys
             const userData = [];
@@ -301,6 +310,7 @@ const UserManagementScreen = () => {
               userData.push(user);
             }
             
+            console.log('Processed user data objects:', userData.length);
             await processUserData(userData);
           } catch (error) {
             console.error('Excel parsing error:', error);
@@ -362,14 +372,20 @@ const UserManagementScreen = () => {
 
       console.log('Valid users found:', validUsers.length);
       
-      // Import users to Firebase
-      const importedCount = await importUsersToFirebase(validUsers);
-      
-      // Refresh the user list
-      await fetchUsers();
-      
-      Alert.alert('Success', `Successfully imported ${importedCount} users`);
-      setIsLoading(false);
+      try {
+        // Import users to Firebase
+        const importedCount = await importUsersToFirebase(validUsers);
+        
+        // Refresh the user list
+        await fetchUsers();
+        
+        Alert.alert('Success', `Successfully imported ${importedCount} users`);
+      } catch (importError) {
+        console.error('Error during import to Firebase:', importError);
+        Alert.alert('Error', `Failed to import users: ${importError.message}`);
+      } finally {
+        setIsLoading(false);
+      }
     } catch (error) {
       console.error('Error processing user data:', error);
       Alert.alert('Error', 'Failed to process user data: ' + error.message);
@@ -382,6 +398,7 @@ const UserManagementScreen = () => {
     
     try {
       // Get existing emails to prevent duplicates
+      console.log('Fetching existing users to check for duplicates...');
       const q = query(collection(db, 'students'));
       const querySnapshot = await getDocs(q);
       const existingEmails = {};
@@ -392,8 +409,11 @@ const UserManagementScreen = () => {
           existingEmails[userData.email.toLowerCase()] = true;
         }
       });
+      
+      console.log(`Found ${Object.keys(existingEmails).length} existing users`);
 
       // Process each user
+      console.log(`Starting import of ${users.length} users...`);
       for (const user of users) {
         // Skip if email already exists
         if (existingEmails[user.email.toLowerCase()]) {
@@ -416,11 +436,19 @@ const UserManagementScreen = () => {
           importedAt: new Date().toISOString(),
         };
         
-        // Add the user to Firestore
-        await addDocument('students', userData);
-        importedCount++;
+        try {
+          // Add the user to Firestore
+          console.log(`Adding user: ${user.name}`);
+          await addDocument('students', userData);
+          importedCount++;
+          console.log(`Successfully added user: ${user.name}`);
+        } catch (addError) {
+          console.error(`Error adding individual user ${user.name}:`, addError);
+          // Continue with next user instead of failing the whole batch
+        }
       }
       
+      console.log(`Successfully imported ${importedCount} users`);
       return importedCount;
     } catch (error) {
       console.error('Error importing users to Firebase:', error);
@@ -714,17 +742,22 @@ const UserManagementScreen = () => {
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
       <View style={styles.header}>
         <Text style={styles.screenTitle}>User Management</Text>
-          </View>
+      </View>
 
-          <View style={styles.searchContainer}>
+      <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="gray" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search users..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search users..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery ? (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Ionicons name="close-circle" size={20} color="#666" />
+          </TouchableOpacity>
+        ) : null}
+      </View>
 
       {isLoading && !users.length ? (
         <View style={styles.loadingContainer}>
@@ -758,11 +791,19 @@ const UserManagementScreen = () => {
         disabled={isLoading}
       >
         <Ionicons name="add" size={30} color="white" />
-              </TouchableOpacity>
+      </TouchableOpacity>
 
       <AddOptionModal />
       <UserActionModal />
       <EditUserModal />
+
+      {/* Loading Indicator */}
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.loadingText}>Processing...</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -1008,6 +1049,22 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingText: {
+    color: '#fff',
+    marginTop: 10,
+    fontSize: 16,
   },
 });
 
