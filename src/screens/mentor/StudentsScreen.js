@@ -10,21 +10,19 @@ import {
   Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 
-// Import demo data and helpers
-import { MENTORS, STUDENTS } from '../../utils/demoData';
+// Import helpers
 import { getInitials } from '../../utils/helpers';
 
-// Using first mentor as the current mentor
-const currentMentor = MENTORS[0];
-
 const StudentsScreen = ({ navigation }) => {
+  const { theme } = useTheme();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Get students assigned to this mentor
-  const mentorStudents = STUDENTS.filter(student => 
-    student.mentorId === currentMentor.id
-  );
+  // Get demo student data - will be replaced with actual data from user context
+  const mentorStudents = user?.students || [];
   
   // Filter students based on search query
   const filteredStudents = mentorStudents.filter(student => 
@@ -40,35 +38,26 @@ const StudentsScreen = ({ navigation }) => {
   
   const renderStudent = ({ item }) => (
     <TouchableOpacity 
-      style={styles.studentCard}
+      style={[styles.studentCard, { 
+        backgroundColor: theme.colors.card,
+        borderColor: theme.colors.border
+      }]}
       onPress={() => handleViewStudent(item)}
     >
       {item.profileImageUrl ? (
         <Image source={{ uri: item.profileImageUrl }} style={styles.studentImage} />
       ) : (
-        <View style={styles.initialsContainer}>
+        <View style={[styles.initialsContainer, { backgroundColor: theme.colors.primary }]}>
           <Text style={styles.initials}>{getInitials(item.name)}</Text>
         </View>
       )}
       
       <View style={styles.studentInfo}>
-        <Text style={styles.studentName}>{item.name}</Text>
-        <Text style={styles.department}>{item.department}</Text>
-        
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBarBackground}>
-            <View style={[styles.progressBar, { width: `${item.progress}%` }]} />
-          </View>
-          <Text style={styles.progressText}>{item.progress}% Complete</Text>
-        </View>
+        <Text style={[styles.studentName, { color: theme.colors.text.primary }]}>{item.name}</Text>
+        <Text style={[styles.department, { color: theme.colors.text.secondary }]}>{item.department}</Text>
         
         <View style={styles.actions}>
-          <TouchableOpacity style={[styles.actionButton, styles.messageButton]}>
-            <Ionicons name="mail-outline" size={16} color="#fff" />
-            <Text style={styles.actionText}>Message</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={[styles.actionButton, styles.scheduleButton]}>
+          <TouchableOpacity style={[styles.scheduleButton, { backgroundColor: theme.colors.primary }]}>
             <Ionicons name="calendar-outline" size={16} color="#fff" />
             <Text style={styles.actionText}>Schedule</Text>
           </TouchableOpacity>
@@ -79,31 +68,38 @@ const StudentsScreen = ({ navigation }) => {
   
   const renderEmptyState = () => (
     <View style={styles.emptyStateContainer}>
-      <Ionicons name="people-outline" size={64} color="#ccc" />
-      <Text style={styles.emptyStateTitle}>No students found</Text>
-      <Text style={styles.emptyStateText}>
+      <Ionicons name="people-outline" size={64} color={theme.colors.text.tertiary} />
+      <Text style={[styles.emptyStateTitle, { color: theme.colors.text.primary }]}>No students found</Text>
+      <Text style={[styles.emptyStateText, { color: theme.colors.text.secondary }]}>
         You don't have any students assigned to you yet or none match your search criteria.
       </Text>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.screenTitle}>My Students</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      <View style={[styles.header, { 
+        backgroundColor: theme.colors.background.secondary,
+        borderBottomColor: theme.colors.border
+      }]}>
+        <Text style={[styles.screenTitle, { color: theme.colors.text.primary }]}>My Students</Text>
       </View>
       
-      <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={20} color="#999" style={styles.searchIcon} />
+      <View style={[styles.searchContainer, { 
+        backgroundColor: theme.colors.card,
+        borderColor: theme.colors.border
+      }]}>
+        <Ionicons name="search-outline" size={20} color={theme.colors.text.tertiary} style={styles.searchIcon} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: theme.colors.text.primary }]}
           placeholder="Search students..."
+          placeholderTextColor={theme.colors.text.tertiary}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery !== '' && (
           <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
-            <Ionicons name="close-circle" size={20} color="#999" />
+            <Ionicons name="close-circle" size={20} color={theme.colors.text.tertiary} />
           </TouchableOpacity>
         )}
       </View>
@@ -111,7 +107,7 @@ const StudentsScreen = ({ navigation }) => {
       <FlatList
         data={filteredStudents}
         renderItem={renderStudent}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={item => item.id ? item.id.toString() : Math.random().toString()}
         contentContainerStyle={styles.studentsList}
         ListEmptyComponent={renderEmptyState}
         showsVerticalScrollIndicator={false}
@@ -123,29 +119,23 @@ const StudentsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   header: {
     padding: 16,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e1e1',
   },
   screenTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
     marginHorizontal: 16,
     marginVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e1e1e1',
   },
   searchIcon: {
     marginRight: 8,
@@ -154,7 +144,6 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 40,
     fontSize: 16,
-    color: '#333',
   },
   clearButton: {
     padding: 4,
@@ -164,7 +153,6 @@ const styles = StyleSheet.create({
   },
   studentCard: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
     borderRadius: 8,
     marginBottom: 16,
     padding: 16,
@@ -184,7 +172,6 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#4e73df',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
@@ -199,58 +186,30 @@ const styles = StyleSheet.create({
   },
   studentName: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: 'bold',
     marginBottom: 4,
   },
   department: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 8,
-  },
-  progressContainer: {
-    marginBottom: 12,
-  },
-  progressBarBackground: {
-    height: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 4,
-    marginBottom: 4,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#4e73df',
-    borderRadius: 4,
-  },
-  progressText: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'right',
   },
   actions: {
     flexDirection: 'row',
+    marginTop: 12,
   },
-  actionButton: {
+  scheduleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 4,
-    marginRight: 8,
-  },
-  messageButton: {
-    backgroundColor: '#4e73df',
-  },
-  scheduleButton: {
-    backgroundColor: '#f9a826',
+    backgroundColor: '#F9A826',
   },
   actionText: {
     color: '#fff',
-    fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 4,
+    fontWeight: 'bold',
+    marginLeft: 6,
   },
   emptyStateContainer: {
     alignItems: 'center',
@@ -259,15 +218,14 @@ const styles = StyleSheet.create({
   },
   emptyStateTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: 'bold',
     marginTop: 16,
     marginBottom: 8,
   },
   emptyStateText: {
     fontSize: 14,
-    color: '#888',
     textAlign: 'center',
+    lineHeight: 20,
   },
 });
 

@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Create the authentication context
@@ -15,6 +15,8 @@ export const AuthProvider = ({ children, value }) => {
   const [userRole, setUserRole] = useState(value?.userRole || null);
   const [userData, setUserData] = useState(value?.userData || null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   
   // Initialize auth state from storage
   useEffect(() => {
@@ -25,6 +27,7 @@ export const AuthProvider = ({ children, value }) => {
         
         if (storedRole) {
           setUserRole(storedRole);
+          setIsAuthenticated(true);
           if (storedUserData) {
             setUserData(JSON.parse(storedUserData));
           }
@@ -50,23 +53,37 @@ export const AuthProvider = ({ children, value }) => {
   }, [value?.userRole, value?.userData]);
   
   // Login function - sets the user role and optional user data
-  const handleLogin = async (role, data = {}) => {
-    if (value?.handleLogin) {
-      value.handleLogin(role, data);
-    } else {
-      try {
-        await AsyncStorage.setItem('userRole', role);
-        setUserRole(role);
-        
-        if (Object.keys(data).length > 0) {
-          await AsyncStorage.setItem('userData', JSON.stringify(data));
-          setUserData(data);
-        }
-      } catch (error) {
-        console.error('Error saving auth state:', error);
-      }
+  const handleLogin = useCallback(async (role, userData = {}) => {
+    try {
+      setIsLoading(true);
+      console.log("AuthContext: Starting login process for role:", role);
+      
+      // Create a user object with role and any other data
+      const user = {
+        ...userData,
+        role
+      };
+      
+      // Store user data in state
+      setUserRole(role);
+      setUserData(user);
+      setIsAuthenticated(true);
+      
+      // Save to AsyncStorage
+      await AsyncStorage.setItem('userRole', role);
+      await AsyncStorage.setItem('userData', JSON.stringify(user));
+      
+      // Clear any loading/error states
+      setIsLoading(false);
+      setError(null);
+      
+      console.log(`AuthContext: Logged in successfully as: ${role}`, user);
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('Failed to log in. Please try again.');
+      setIsLoading(false);
     }
-  };
+  }, []);
   
   // Logout function - clears the user role and data
   const handleLogout = async () => {
@@ -78,6 +95,7 @@ export const AuthProvider = ({ children, value }) => {
         await AsyncStorage.removeItem('userData');
         setUserRole(null);
         setUserData(null);
+        setIsAuthenticated(false);
       } catch (error) {
         console.error('Error clearing auth state:', error);
       }
@@ -87,11 +105,12 @@ export const AuthProvider = ({ children, value }) => {
   // Create the value object for the context
   const contextValue = {
     userRole,
-    userData,
+    user: userData,
     isLoading,
     handleLogin,
     handleLogout,
-    isAuthenticated: userRole !== null,
+    isAuthenticated,
+    error,
   };
   
   return (

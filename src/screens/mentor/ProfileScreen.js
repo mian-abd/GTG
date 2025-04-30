@@ -14,23 +14,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 
-// Import demo data
-import { MENTORS } from '../../utils/demoData';
+// Import helpers
 import { getInitials } from '../../utils/helpers';
-
-// Using first mentor as the current mentor
-const currentMentor = MENTORS[0];
 
 const ProfileScreen = ({ onLogout, navigation }) => {
   // Get theme context
   const { theme, isDarkMode, toggleTheme } = useTheme();
-  const auth = useAuth();
+  const { user, handleLogout } = useAuth();
   
   // State for settings
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailAlertsEnabled, setEmailAlertsEnabled] = useState(true);
   
-  const handleLogout = () => {
+  const handleLogoutPress = () => {
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
@@ -45,8 +41,8 @@ const ProfileScreen = ({ onLogout, navigation }) => {
             // Use the provided onLogout prop if available, otherwise use the auth context
             if (onLogout) {
               onLogout();
-            } else if (auth && auth.handleLogout) {
-              auth.handleLogout();
+            } else if (handleLogout) {
+              handleLogout();
             }
           },
           style: 'destructive'
@@ -78,43 +74,43 @@ const ProfileScreen = ({ onLogout, navigation }) => {
           borderBottomColor: theme.colors.border
         }]}>
           <View style={styles.profileHeader}>
-            {currentMentor.profileImageUrl ? (
+            {user?.profileImageUrl ? (
               <Image 
-                source={{ uri: currentMentor.profileImageUrl }} 
+                source={{ uri: user.profileImageUrl }} 
                 style={styles.profileImage} 
               />
             ) : (
               <View style={[styles.profileImageFallback, { backgroundColor: theme.colors.primary }]}>
                 <Text style={styles.profileImageText}>
-                  {getInitials(currentMentor.name)}
+                  {getInitials(user?.name || user?.email || 'Mentor')}
                 </Text>
               </View>
             )}
             
             <View style={styles.profileInfo}>
-              <Text style={[styles.profileName, { color: theme.colors.text.primary }]}>{currentMentor.name}</Text>
-              <Text style={[styles.profileRole, { color: theme.colors.text.secondary }]}>{currentMentor.department}</Text>
-              <Text style={[styles.profileEmail, { color: theme.colors.text.secondary }]}>{currentMentor.email}</Text>
+              <Text style={[styles.profileName, { color: theme.colors.text.primary }]}>{user?.name || 'Mentor'}</Text>
+              <Text style={[styles.profileRole, { color: theme.colors.text.secondary }]}>{user?.department || 'Department'}</Text>
+              <Text style={[styles.profileEmail, { color: theme.colors.text.secondary }]}>{user?.email || ''}</Text>
             </View>
           </View>
           
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>{currentMentor.students.length}</Text>
+              <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>{user?.students?.length || 0}</Text>
               <Text style={[styles.statLabel, { color: theme.colors.text.secondary }]}>Students</Text>
             </View>
             
             <View style={[styles.statDivider, { backgroundColor: theme.colors.border }]} />
             
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>12</Text>
+              <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>{user?.classes?.length || 0}</Text>
               <Text style={[styles.statLabel, { color: theme.colors.text.secondary }]}>Classes</Text>
             </View>
             
             <View style={[styles.statDivider, { backgroundColor: theme.colors.border }]} />
             
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>5</Text>
+              <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>{user?.yearsExperience || 0}</Text>
               <Text style={[styles.statLabel, { color: theme.colors.text.secondary }]}>Years</Text>
             </View>
           </View>
@@ -199,18 +195,61 @@ const ProfileScreen = ({ onLogout, navigation }) => {
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={styles.accountItem} 
-            onPress={handleLogout}
+            style={[styles.accountItem, { borderBottomColor: 'transparent' }]}
+            onPress={handleLogoutPress}
           >
             <View style={styles.accountItemLeft}>
-              <Ionicons name="log-out-outline" size={24} color={theme.colors.accent} style={styles.accountIcon} />
-              <Text style={[styles.accountText, styles.logoutText]}>Logout</Text>
+              <Ionicons name="log-out-outline" size={24} color="#E74C3C" style={styles.accountIcon} />
+              <Text style={[styles.accountText, { color: "#E74C3C" }]}>Logout</Text>
             </View>
           </TouchableOpacity>
         </View>
         
-        <View style={styles.footer}>
-          <Text style={[styles.versionText, { color: theme.colors.text.tertiary }]}>Version 1.0.0</Text>
+        {/* My Students Section - Remove progress bars and message icons */}
+        <View style={[styles.studentsSection, { 
+          backgroundColor: theme.colors.card,
+          marginBottom: 20,
+        }]}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>My Students</Text>
+            <TouchableOpacity 
+              style={[styles.viewAllButton, { borderColor: theme.colors.border }]}
+              onPress={() => navigation.navigate('StudentsTab')}
+            >
+              <Text style={[styles.viewAllText, { color: theme.colors.primary }]}>View All</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {user?.students && user.students.length > 0 ? (
+            user.students.slice(0, 3).map((student, index) => (
+              <View 
+                key={index}
+                style={[
+                  styles.studentItem, 
+                  { borderBottomColor: theme.colors.border },
+                  index === (user.students.length - 1 || 2) && { borderBottomWidth: 0 }
+                ]}
+              >
+                <View style={styles.studentInfo}>
+                  {student.profileImageUrl ? (
+                    <Image source={{ uri: student.profileImageUrl }} style={styles.studentImage} />
+                  ) : (
+                    <View style={[styles.studentImageFallback, { backgroundColor: theme.colors.tertiary }]}>
+                      <Text style={styles.studentImageText}>{getInitials(student.name)}</Text>
+                    </View>
+                  )}
+                  <View>
+                    <Text style={[styles.studentName, { color: theme.colors.text.primary }]}>{student.name}</Text>
+                    <Text style={[styles.studentDetail, { color: theme.colors.text.secondary }]}>{student.department}</Text>
+                  </View>
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text style={[styles.noStudentsText, { color: theme.colors.text.secondary }]}>
+              No students assigned yet
+            </Text>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -388,6 +427,74 @@ const styles = StyleSheet.create({
   versionText: {
     color: '#888',
     fontSize: 14,
+  },
+  studentsSection: {
+    backgroundColor: '#fff',
+    padding: 20,
+    marginBottom: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  viewAllButton: {
+    borderWidth: 1,
+    borderColor: '#e1e1e1',
+    padding: 8,
+    borderRadius: 4,
+  },
+  viewAllText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  studentItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  studentInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  studentImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 16,
+  },
+  studentImageFallback: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#4e73df',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  studentImageText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  studentName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  studentDetail: {
+    fontSize: 14,
+    color: '#666',
+  },
+  noStudentsText: {
+    fontSize: 16,
+    color: '#888',
+    textAlign: 'center',
   },
 });
 

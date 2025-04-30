@@ -48,22 +48,11 @@ const MentorLoginScreen = () => {
         const mentorDoc = querySnapshot.docs[0];
         const mentorData = mentorDoc.data();
         
-        Alert.alert(
-          'Success',
-          'Login successful!',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                // Pass the mentor details to handleLogin
-                handleLogin('mentor', { 
-                  id: mentorDoc.id,
-                  ...mentorData
-                });
-              }
-            }
-          ]
-        );
+        // Directly call handleLogin without Alert.alert
+        handleLogin('mentor', { 
+          id: mentorDoc.id,
+          ...mentorData
+        });
       } else {
         setErrorMessage('Invalid verification code. Please try again.');
       }

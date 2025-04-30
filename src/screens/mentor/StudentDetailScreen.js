@@ -10,12 +10,15 @@ import {
   FlatList
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../context/ThemeContext';
 
 // Import demo data and helper functions
 import { STUDENTS, CLASSES } from '../../utils/demoData';
 import { getInitials, formatDate } from '../../utils/helpers';
 
 const StudentDetailScreen = ({ route, navigation }) => {
+  const { theme } = useTheme();
+  
   // In a real app, this would come from the route params
   // For now, just use the first student as an example
   const studentId = route.params?.studentId || STUDENTS[0].id;
@@ -31,83 +34,80 @@ const StudentDetailScreen = ({ route, navigation }) => {
   // Function to render the student's basic information
   const renderOverview = () => (
     <View>
-      <View style={styles.infoSection}>
-        <Text style={styles.sectionTitle}>Personal Information</Text>
+      <View style={[styles.infoSection, { 
+        backgroundColor: theme.colors.card,
+        borderColor: theme.colors.border 
+      }]}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Personal Information</Text>
         
         <View style={styles.infoRow}>
           <View style={styles.infoLabelContainer}>
-            <Ionicons name="mail-outline" size={18} color="#666" style={styles.infoIcon} />
-            <Text style={styles.infoLabel}>Email</Text>
+            <Ionicons name="mail-outline" size={18} color={theme.colors.text.secondary} style={styles.infoIcon} />
+            <Text style={[styles.infoLabel, { color: theme.colors.text.secondary }]}>Email</Text>
           </View>
-          <Text style={styles.infoValue}>{student.email}</Text>
+          <Text style={[styles.infoValue, { color: theme.colors.text.primary }]}>{student.email}</Text>
         </View>
         
         <View style={styles.infoRow}>
           <View style={styles.infoLabelContainer}>
-            <Ionicons name="school-outline" size={18} color="#666" style={styles.infoIcon} />
-            <Text style={styles.infoLabel}>Department</Text>
+            <Ionicons name="school-outline" size={18} color={theme.colors.text.secondary} style={styles.infoIcon} />
+            <Text style={[styles.infoLabel, { color: theme.colors.text.secondary }]}>Department</Text>
           </View>
-          <Text style={styles.infoValue}>{student.department}</Text>
+          <Text style={[styles.infoValue, { color: theme.colors.text.primary }]}>{student.department}</Text>
         </View>
         
         <View style={styles.infoRow}>
           <View style={styles.infoLabelContainer}>
-            <Ionicons name="pin-outline" size={18} color="#666" style={styles.infoIcon} />
-            <Text style={styles.infoLabel}>Room</Text>
+            <Ionicons name="pin-outline" size={18} color={theme.colors.text.secondary} style={styles.infoIcon} />
+            <Text style={[styles.infoLabel, { color: theme.colors.text.secondary }]}>Room</Text>
           </View>
-          <Text style={styles.infoValue}>{student.roomNumber || student.roomAssignment || 'Not assigned'}</Text>
+          <Text style={[styles.infoValue, { color: theme.colors.text.primary }]}>{student.roomNumber || student.roomAssignment || 'Not assigned'}</Text>
         </View>
       </View>
       
-      <View style={styles.progressSection}>
-        <Text style={styles.sectionTitle}>Academic Progress</Text>
+      <View style={[styles.activitySection, { 
+        backgroundColor: theme.colors.card,
+        borderColor: theme.colors.border 
+      }]}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Academic Activities</Text>
         
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <View 
-              style={[
-                styles.progressFill, 
-                { width: `${student.progress || 0}%` }
-              ]} 
-            />
-          </View>
-          <Text style={styles.progressText}>{student.progress || 0}% Complete</Text>
-        </View>
-        
-        <View style={styles.progressStats}>
-          <View style={styles.progressStat}>
-            <Text style={styles.progressStatValue}>8</Text>
-            <Text style={styles.progressStatLabel}>Completed</Text>
+        <View style={styles.activityStats}>
+          <View style={styles.activityStat}>
+            <Text style={[styles.activityStatValue, { color: theme.colors.text.primary }]}>8</Text>
+            <Text style={[styles.activityStatLabel, { color: theme.colors.text.secondary }]}>Completed</Text>
           </View>
           
-          <View style={styles.progressStat}>
-            <Text style={styles.progressStatValue}>3</Text>
-            <Text style={styles.progressStatLabel}>In Progress</Text>
+          <View style={styles.activityStat}>
+            <Text style={[styles.activityStatValue, { color: theme.colors.text.primary }]}>3</Text>
+            <Text style={[styles.activityStatLabel, { color: theme.colors.text.secondary }]}>In Progress</Text>
           </View>
           
-          <View style={styles.progressStat}>
-            <Text style={styles.progressStatValue}>2</Text>
-            <Text style={styles.progressStatLabel}>Upcoming</Text>
+          <View style={styles.activityStat}>
+            <Text style={[styles.activityStatValue, { color: theme.colors.text.primary }]}>2</Text>
+            <Text style={[styles.activityStatLabel, { color: theme.colors.text.secondary }]}>Upcoming</Text>
           </View>
         </View>
       </View>
       
-      <View style={styles.notesSection}>
+      <View style={[styles.notesSection, { 
+        backgroundColor: theme.colors.card,
+        borderColor: theme.colors.border 
+      }]}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Notes</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Notes</Text>
           <TouchableOpacity>
-            <Ionicons name="add-circle-outline" size={22} color="#4e73df" />
+            <Ionicons name="add-circle-outline" size={22} color={theme.colors.primary} />
           </TouchableOpacity>
         </View>
         
-        <View style={styles.noteItem}>
+        <View style={[styles.noteItem, { borderBottomColor: theme.colors.border }]}>
           <View style={styles.noteHeader}>
-            <Text style={styles.noteDate}>April 5, 2023</Text>
+            <Text style={[styles.noteDate, { color: theme.colors.text.secondary }]}>April 5, 2023</Text>
             <TouchableOpacity>
-              <Ionicons name="ellipsis-horizontal" size={18} color="#999" />
+              <Ionicons name="ellipsis-horizontal" size={18} color={theme.colors.text.tertiary} />
             </TouchableOpacity>
           </View>
-          <Text style={styles.noteText}>
+          <Text style={[styles.noteText, { color: theme.colors.text.primary }]}>
             Sarah is making excellent progress on her research project. 
             We discussed potential methods for data analysis and decided on using R for statistical testing.
           </Text>
@@ -115,35 +115,38 @@ const StudentDetailScreen = ({ route, navigation }) => {
         
         <View style={styles.noteItem}>
           <View style={styles.noteHeader}>
-            <Text style={styles.noteDate}>March 22, 2023</Text>
+            <Text style={[styles.noteDate, { color: theme.colors.text.secondary }]}>March 22, 2023</Text>
             <TouchableOpacity>
-              <Ionicons name="ellipsis-horizontal" size={18} color="#999" />
+              <Ionicons name="ellipsis-horizontal" size={18} color={theme.colors.text.tertiary} />
             </TouchableOpacity>
           </View>
-          <Text style={styles.noteText}>
+          <Text style={[styles.noteText, { color: theme.colors.text.primary }]}>
             Initial meeting to discuss thesis topic. Sarah is interested in pursuing research on environmental impact 
             of urban development. I suggested several recent papers for her to review before our next meeting.
           </Text>
         </View>
       </View>
       
-      <View style={styles.emergencySection}>
-        <Text style={styles.sectionTitle}>Emergency Information</Text>
+      <View style={[styles.emergencySection, { 
+        backgroundColor: theme.colors.card,
+        borderColor: theme.colors.border 
+      }]}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Emergency Information</Text>
         
         <View style={styles.emergencyInfo}>
           <View style={styles.emergencyContact}>
-            <Text style={styles.emergencyLabel}>Emergency Contact</Text>
-            <Text style={styles.emergencyName}>
+            <Text style={[styles.emergencyLabel, { color: theme.colors.text.secondary }]}>Emergency Contact</Text>
+            <Text style={[styles.emergencyName, { color: theme.colors.text.primary }]}>
               {student.emergencyContact?.name || 'Not provided'}
             </Text>
-            <Text style={styles.emergencyRelation}>
+            <Text style={[styles.emergencyRelation, { color: theme.colors.text.secondary }]}>
               {student.emergencyContact?.relationship || ''} • {student.emergencyContact?.phone || 'No phone'}
             </Text>
           </View>
           
           <View style={styles.medicalInfo}>
-            <Text style={styles.emergencyLabel}>Medical Information</Text>
-            <Text style={styles.medicalText}>
+            <Text style={[styles.emergencyLabel, { color: theme.colors.text.secondary }]}>Medical Information</Text>
+            <Text style={[styles.medicalText, { color: theme.colors.text.primary }]}>
               {student.medicalInfo || 'No medical information provided'}
             </Text>
           </View>
@@ -157,43 +160,46 @@ const StudentDetailScreen = ({ route, navigation }) => {
     <View style={styles.classesContainer}>
       {studentClasses.length > 0 ? (
         studentClasses.map(cls => (
-          <View key={cls.id} style={styles.classItem}>
+          <View key={cls.id} style={[styles.classItem, { 
+            backgroundColor: theme.colors.card,
+            borderColor: theme.colors.border 
+          }]}>
             <View style={styles.classHeader}>
-              <Text style={styles.className}>{cls.name}</Text>
-              <View style={styles.classTagContainer}>
+              <Text style={[styles.className, { color: theme.colors.text.primary }]}>{cls.name}</Text>
+              <View style={[styles.classTagContainer, { backgroundColor: theme.colors.primary }]}>
                 <Text style={styles.classTag}>{cls.id.toUpperCase()}</Text>
               </View>
             </View>
             
             <View style={styles.classDetails}>
               <View style={styles.classDetailRow}>
-                <Ionicons name="person-outline" size={16} color="#666" style={styles.classIcon} />
-                <Text style={styles.classDetailText}>{cls.instructor}</Text>
+                <Ionicons name="person-outline" size={16} color={theme.colors.text.secondary} style={styles.classIcon} />
+                <Text style={[styles.classDetailText, { color: theme.colors.text.primary }]}>{cls.instructor}</Text>
               </View>
               
               <View style={styles.classDetailRow}>
-                <Ionicons name="time-outline" size={16} color="#666" style={styles.classIcon} />
-                <Text style={styles.classDetailText}>
+                <Ionicons name="time-outline" size={16} color={theme.colors.text.secondary} style={styles.classIcon} />
+                <Text style={[styles.classDetailText, { color: theme.colors.text.primary }]}>
                   {formatDate(cls.schedule.date, 'short')} at {cls.schedule.time}
                 </Text>
               </View>
               
               <View style={styles.classDetailRow}>
-                <Ionicons name="location-outline" size={16} color="#666" style={styles.classIcon} />
-                <Text style={styles.classDetailText}>{cls.location}</Text>
+                <Ionicons name="location-outline" size={16} color={theme.colors.text.secondary} style={styles.classIcon} />
+                <Text style={[styles.classDetailText, { color: theme.colors.text.primary }]}>{cls.location}</Text>
               </View>
             </View>
             
-            <TouchableOpacity style={styles.viewClassButton}>
-              <Text style={styles.viewClassText}>View Class Details</Text>
+            <TouchableOpacity style={[styles.viewClassButton, { backgroundColor: theme.colors.background.tertiary }]}>
+              <Text style={[styles.viewClassText, { color: theme.colors.text.primary }]}>View Class Details</Text>
             </TouchableOpacity>
           </View>
         ))
       ) : (
         <View style={styles.emptyState}>
-          <Ionicons name="school-outline" size={48} color="#ccc" />
-          <Text style={styles.emptyStateTitle}>No Classes Found</Text>
-          <Text style={styles.emptyStateText}>This student is not enrolled in any classes.</Text>
+          <Ionicons name="school-outline" size={48} color={theme.colors.text.tertiary} />
+          <Text style={[styles.emptyStateTitle, { color: theme.colors.text.primary }]}>No Classes Found</Text>
+          <Text style={[styles.emptyStateText, { color: theme.colors.text.secondary }]}>This student is not enrolled in any classes.</Text>
         </View>
       )}
     </View>
@@ -538,48 +544,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
   },
-  progressSection: {
+  activitySection: {
     backgroundColor: '#fff',
     borderRadius: 8,
     padding: 16,
     marginBottom: 16,
   },
-  progressContainer: {
-    marginBottom: 16,
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 4,
-    marginBottom: 8,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#4e73df',
-    borderRadius: 4,
-  },
-  progressText: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'right',
-  },
-  progressStats: {
+  activityStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 16,
   },
-  progressStat: {
+  activityStat: {
     alignItems: 'center',
   },
-  progressStatValue: {
+  activityStatValue: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
   },
-  progressStatLabel: {
+  activityStatLabel: {
     fontSize: 12,
     color: '#888',
-    marginTop: 4,
   },
   notesSection: {
     backgroundColor: '#fff',

@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { getInitials } from '../../utils/helpers';
 
 // Demo data
 const STUDENT_DATA = [
@@ -81,7 +82,7 @@ const SCHEDULE_TOMORROW = [
 
 const MentorDashboardScreen = () => {
   const navigation = useNavigation();
-  const { handleLogout } = useAuth();
+  const { user, handleLogout } = useAuth();
   const { theme } = useTheme();
   
   const handleMenuToggle = () => {
@@ -115,12 +116,16 @@ const MentorDashboardScreen = () => {
         <ScrollView style={styles.scrollView}>
           <View style={styles.dashboardHeader}>
             <View style={styles.mentorProfileSection}>
-              <View style={[styles.profileImageContainer, { backgroundColor: theme.colors.primary }]}>
-                <Text style={styles.profileInitials}>DR</Text>
-              </View>
+              {user?.profileImageUrl ? (
+                <Image source={{ uri: user.profileImageUrl }} style={styles.profileImage} />
+              ) : (
+                <View style={[styles.profileImageContainer, { backgroundColor: theme.colors.primary }]}>
+                  <Text style={styles.profileInitials}>{getInitials(user?.name || "User")}</Text>
+                </View>
+              )}
               <View style={styles.mentorInfo}>
-                <Text style={[styles.mentorName, { color: theme.colors.text.primary }]}>Dr. Sarah Reynolds</Text>
-                <Text style={[styles.mentorDepartment, { color: theme.colors.text.secondary }]}>Computer Science</Text>
+                <Text style={[styles.mentorName, { color: theme.colors.text.primary }]}>{user?.name || "Mentor"}</Text>
+                <Text style={[styles.mentorDepartment, { color: theme.colors.text.secondary }]}>{user?.department || "Department"}</Text>
               </View>
             </View>
             <View style={styles.dashboardTitleContainer}>
@@ -133,9 +138,12 @@ const MentorDashboardScreen = () => {
             backgroundColor: theme.colors.card,
             borderColor: theme.colors.border
           }]}>
-            <Text style={[styles.welcomeText, { color: theme.colors.text.primary }]}>Welcome back, Dr. Reynolds!</Text>
+            <Text style={[styles.welcomeText, { color: theme.colors.text.primary }]}>Welcome back, {user?.name?.split(' ')[0] || "Mentor"}!</Text>
             <Text style={[styles.updateText, { color: theme.colors.text.secondary }]}>You have 3 student updates and 2 upcoming activities today</Text>
-            <TouchableOpacity style={[styles.viewScheduleButton, { backgroundColor: theme.colors.primary }]}>
+            <TouchableOpacity 
+              style={[styles.viewScheduleButton, { backgroundColor: theme.colors.primary }]}
+              onPress={() => navigation.navigate('ScheduleTab')}
+            >
               <Text style={styles.viewScheduleText}>View Schedule</Text>
             </TouchableOpacity>
           </View>
@@ -158,17 +166,6 @@ const MentorDashboardScreen = () => {
                     <Text style={[styles.studentName, { color: theme.colors.text.primary }]}>{student.name}</Text>
                     <Text style={[styles.studentDepartment, { color: theme.colors.text.secondary }]}>{student.department}</Text>
                   </View>
-                </View>
-
-                <View style={styles.progressContainer}>
-                  <Text style={[styles.progressText, { color: theme.colors.text.secondary }]}>Overall Progress</Text>
-                  <View style={[styles.progressBarContainer, { backgroundColor: theme.colors.background.tertiary }]}>
-                    <View style={[styles.progressBar, { 
-                      width: `${student.progress}%`,
-                      backgroundColor: theme.colors.primary
-                    }]} />
-                  </View>
-                  <Text style={[styles.progressPercentage, { color: theme.colors.text.secondary }]}>{student.progress}%</Text>
                 </View>
 
                 <View style={styles.meetingNotesContainer}>
@@ -199,9 +196,10 @@ const MentorDashboardScreen = () => {
                 <View style={styles.scheduleIconContainer}>
                   <Ionicons name={item.icon} size={24} color={theme.colors.primary} />
                 </View>
-                <View style={styles.scheduleInfo}>
-                  <Text style={[styles.scheduleTitle, { color: theme.colors.text.primary }]}>{item.name}</Text>
-                  <Text style={[styles.scheduleTime, { color: theme.colors.text.secondary }]}>{item.time} • {item.location}</Text>
+                <View style={styles.scheduleContent}>
+                  <Text style={[styles.scheduleItemName, { color: theme.colors.text.primary }]}>{item.name}</Text>
+                  <Text style={[styles.scheduleItemTime, { color: theme.colors.text.secondary }]}>{item.time}</Text>
+                  <Text style={[styles.scheduleItemLocation, { color: theme.colors.text.tertiary }]}>{item.location}</Text>
                 </View>
               </View>
             ))}
@@ -391,30 +389,6 @@ const styles = StyleSheet.create({
     color: '#CCC',
     fontSize: 14,
   },
-  progressContainer: {
-    marginBottom: 16,
-  },
-  progressText: {
-    color: '#CCC',
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  progressBarContainer: {
-    height: 6,
-    backgroundColor: '#444',
-    borderRadius: 3,
-    marginBottom: 4,
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: '#F9A826',
-    borderRadius: 3,
-  },
-  progressPercentage: {
-    color: '#F9A826',
-    fontWeight: 'bold',
-    alignSelf: 'flex-end',
-  },
   meetingNotesContainer: {
     marginBottom: 16,
   },
@@ -473,6 +447,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerText: {
+    color: '#888',
+    fontSize: 12,
+  },
+  profileImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 16,
+  },
+  scheduleContent: {
+    flex: 1,
+  },
+  scheduleItemName: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  scheduleItemTime: {
+    color: '#CCC',
+    fontSize: 14,
+  },
+  scheduleItemLocation: {
     color: '#888',
     fontSize: 12,
   },

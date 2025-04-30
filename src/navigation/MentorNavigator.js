@@ -12,7 +12,6 @@ import ScheduleScreen from '../screens/mentor/ScheduleScreen';
 import ResourcesScreen from '../screens/mentor/ResourcesScreen';
 import ProfileScreen from '../screens/mentor/ProfileScreen';
 import StudentDetailScreen from '../screens/mentor/StudentDetailScreen';
-import MessagesScreen from '../screens/mentor/MessagesScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -43,13 +42,6 @@ const ScheduleStack = () => (
 const ResourcesStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="MentorResources" component={ResourcesScreen} />
-  </Stack.Navigator>
-);
-
-// Messages Stack
-const MessagesStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="Messages" component={MessagesScreen} />
   </Stack.Navigator>
 );
 
@@ -84,8 +76,6 @@ const MentorNavigator = () => {
             iconName = focused ? 'calendar' : 'calendar-outline';
           } else if (route.name === 'ResourcesTab') {
             iconName = focused ? 'folder' : 'folder-outline';
-          } else if (route.name === 'MessagesTab') {
-            iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
           } else if (route.name === 'ProfileTab') {
             iconName = focused ? 'person' : 'person-outline';
           }
@@ -118,11 +108,6 @@ const MentorNavigator = () => {
         name="ScheduleTab" 
         component={ScheduleStack} 
         options={{ title: 'Schedule' }}
-      />
-      <Tab.Screen 
-        name="MessagesTab" 
-        component={MessagesStack} 
-        options={{ title: 'Messages' }}
       />
       <Tab.Screen 
         name="ResourcesTab" 

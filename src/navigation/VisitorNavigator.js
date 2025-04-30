@@ -10,6 +10,7 @@ import ScheduleScreen from '../screens/visitor/ScheduleScreen';
 import MentorsScreen from '../screens/visitor/MentorsScreen';
 import ExploreScreen from '../screens/visitor/ExploreScreen';
 import ProfileScreen from '../screens/visitor/ProfileScreen';
+import EditProfileScreen from '../screens/visitor/EditProfileScreen';
 import MapDirectionsScreen from '../screens/visitor/MapDirectionsScreen';
 import ClassDetailsScreen from '../screens/visitor/ClassDetailsScreen';
 import MentorDetailsScreen from '../screens/visitor/MentorDetailsScreen';
@@ -52,6 +53,7 @@ const ExploreStack = () => (
 const ProfileStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="Profile" component={ProfileScreen} />
+    <Stack.Screen name="EditProfile" component={EditProfileScreen} />
   </Stack.Navigator>
 );
 

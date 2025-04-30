@@ -35,29 +35,48 @@ const VisitorLoginScreen = () => {
     try {
       setIsLoading(true);
       setErrorMessage('');
+      console.log("VisitorLoginScreen: Starting login with token");
       
       // Verify the token by checking the students collection
       const result = await verifyTokenOnly(token);
       
       if (result.success) {
-        Alert.alert(
-          'Success',
-          'Login successful!',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                // Pass the student ID, email, and token to the handleLogin function
-                handleLogin('visitor', { 
-                  studentId: result.studentId,
-                  email: result.email,
-                  token: result.token // Store the verification token for future use
-                });
-              }
-            }
-          ]
-        );
+        console.log("VisitorLoginScreen: Token verification successful, fetching user data");
+        // Fetch complete student data from Firestore
+        const { getDoc, doc } = await import('firebase/firestore');
+        const { db } = await import('../../utils/firebaseConfig');
+        
+        // Get the full student document
+        const studentDocRef = doc(db, 'students', result.studentId);
+        const studentSnap = await getDoc(studentDocRef);
+        
+        if (studentSnap.exists()) {
+          const studentData = studentSnap.data();
+          console.log("VisitorLoginScreen: Student data fetched successfully");
+          
+          // Directly call handleLogin without the Alert.alert
+          handleLogin('visitor', { 
+            id: result.studentId,
+            email: result.email,
+            token: result.token,
+            name: studentData.name || '',
+            department: studentData.department || 'Student',
+            profileImageUrl: studentData.profileImageUrl || null,
+            roomAssignment: studentData.roomAssignment || {},
+            ...studentData // Include all other student data
+          });
+        } else {
+          console.log("VisitorLoginScreen: Student document not found, using basic data");
+          // If full student document doesn't exist, use the basic data we have
+          // Directly call handleLogin without the Alert.alert
+          handleLogin('visitor', { 
+            id: result.studentId,
+            email: result.email,
+            token: result.token
+          });
+        }
       } else {
+        console.error("VisitorLoginScreen: Token verification failed", result.error);
         setErrorMessage(result.error || 'Invalid verification code');
       }
     } catch (error) {

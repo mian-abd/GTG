@@ -14,17 +14,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { doc, updateDoc, getFirestore } from 'firebase/firestore';
 
-// Import demo data and helpers
-import { STUDENTS } from '../../utils/demoData';
+// Import helpers
 import { getInitials } from '../../utils/helpers';
-
-// Using first student as the current visitor
-const currentStudent = STUDENTS[0];
 
 const ProfileScreen = () => {
   const navigation = useNavigation();
-  const { handleLogout } = useAuth();
+  const { user, handleLogout, handleLogin } = useAuth();
   const { theme, isDarkMode, toggleTheme, useSystemTheme, enableSystemTheme } = useTheme();
   
   // State for settings switches
@@ -39,8 +36,11 @@ const ProfileScreen = () => {
   }, [useSystemTheme]);
   
   const handleEditProfile = () => {
-    // Will navigate to edit profile screen in future
-    Alert.alert('Edit Profile', 'This feature will be available soon.');
+    // Navigate to edit profile screen
+    navigation.navigate('EditProfile', { 
+      onSaveProfile: updateUserProfile,
+      currentUser: user
+    });
   };
   
   const handleMedicalInfo = () => {
@@ -87,6 +87,42 @@ const ProfileScreen = () => {
     }
   };
   
+  // Function to update user profile in Firestore and AuthContext
+  const updateUserProfile = async (updatedData) => {
+    try {
+      // Only proceed if we have user ID
+      if (!user?.id) {
+        Alert.alert('Error', 'Unable to update profile. User ID not found.');
+        return false;
+      }
+      
+      // Get Firestore instance
+      const db = getFirestore();
+      
+      // Reference to the student document
+      const studentRef = doc(db, 'students', user.id);
+      
+      // Update the document in Firestore
+      await updateDoc(studentRef, updatedData);
+      
+      // Update local auth context with updated data
+      const updatedUser = {
+        ...user,
+        ...updatedData
+      };
+      
+      // Update auth context
+      handleLogin('visitor', updatedUser);
+      
+      Alert.alert('Success', 'Profile updated successfully');
+      return true;
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+      return false;
+    }
+  };
+  
   // Room and schedule section
   const renderRoomScheduleSection = () => (
     <View style={[styles.sectionCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
@@ -98,7 +134,10 @@ const ProfileScreen = () => {
         <Ionicons name="home-outline" size={20} color={theme.colors.text.secondary} style={styles.infoIcon} />
         <View>
           <Text style={[styles.infoLabel, { color: theme.colors.text.secondary }]}>Room Assignment</Text>
-          <Text style={[styles.infoValue, { color: theme.colors.text.primary }]}>{currentStudent.roomAssignment.building} - Room {currentStudent.roomAssignment.roomNumber}</Text>
+          <Text style={[styles.infoValue, { color: theme.colors.text.primary }]}>
+            {user?.roomAssignment?.building || 'Not assigned'} 
+            {user?.roomAssignment?.roomNumber ? ` - Room ${user.roomAssignment.roomNumber}` : ''}
+          </Text>
         </View>
       </View>
       
@@ -215,17 +254,17 @@ const ProfileScreen = () => {
       
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={[styles.profileCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-          {currentStudent.profileImageUrl ? (
-            <Image source={{ uri: currentStudent.profileImageUrl }} style={styles.profileImage} />
+          {user?.profileImageUrl ? (
+            <Image source={{ uri: user.profileImageUrl }} style={styles.profileImage} />
           ) : (
             <View style={[styles.initialsContainer, { backgroundColor: theme.colors.primary }]}>
-              <Text style={styles.initials}>{getInitials(currentStudent.name)}</Text>
+              <Text style={styles.initials}>{getInitials(user?.name || user?.email || 'User')}</Text>
             </View>
           )}
           
-          <Text style={[styles.profileName, { color: theme.colors.text.primary }]}>{currentStudent.name}</Text>
-          <Text style={[styles.profileDepartment, { color: theme.colors.text.secondary }]}>{currentStudent.department}</Text>
-          <Text style={[styles.profileEmail, { color: theme.colors.text.secondary }]}>{currentStudent.email}</Text>
+          <Text style={[styles.profileName, { color: theme.colors.text.primary }]}>{user?.name || 'User'}</Text>
+          <Text style={[styles.profileDepartment, { color: theme.colors.text.secondary }]}>{user?.department || 'Student'}</Text>
+          <Text style={[styles.profileEmail, { color: theme.colors.text.secondary }]}>{user?.email || ''}</Text>
         </View>
         
         {renderRoomScheduleSection()}

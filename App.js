@@ -12,7 +12,7 @@ import { initializeSchedule } from './src/utils/scheduleService';
 import { setupSendGridApiKey } from './src/utils/setupApiKeys';
 
 // Context
-import { AuthProvider } from './src/context/AuthContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 
 // Navigation
@@ -29,10 +29,44 @@ const ThemedStatusBar = () => {
   return <StatusBar style={theme.colors.statusBar} />;
 };
 
+// Main navigator that selects the appropriate navigator based on auth state
+const MainNavigator = () => {
+  const { userRole, isLoading, isAuthenticated } = useAuth();
+  
+  // Log current auth state for debugging
+  console.log("MainNavigator - Auth state:", { userRole, isLoading, isAuthenticated });
+  
+  if (isLoading) {
+    return null; // Or a loading screen
+  }
+  
+  // Determine which navigator to render based on userRole
+  let navigatorToRender;
+  
+  if (userRole === 'admin') {
+    console.log("Rendering AdminNavigator");
+    navigatorToRender = <AdminNavigator />;
+  } else if (userRole === 'mentor') {
+    console.log("Rendering MentorNavigator");
+    navigatorToRender = <MentorNavigator />;
+  } else if (userRole === 'visitor') {
+    console.log("Rendering VisitorNavigator");
+    navigatorToRender = <VisitorNavigator />;
+  } else {
+    console.log("Rendering AuthNavigator");
+    navigatorToRender = <AuthNavigator />;
+  }
+  
+  return (
+    <>
+      <ThemedStatusBar />
+      {navigatorToRender}
+    </>
+  );
+};
+
 export default function App() {
-  const [userRole, setUserRole] = useState(null); // 'admin', 'mentor', 'visitor', or null
-  const [userData, setUserData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [appIsReady, setAppIsReady] = useState(false);
 
   useEffect(() => {
     // Initialize the app and schedule
@@ -41,56 +75,27 @@ export default function App() {
         // Initialize the default schedule
         await initializeSchedule();
         console.log('Schedule initialization completed');
-        
-        // Setup API keys (in production, get from environment variables or secure storage)
-        // Don't use hardcoded values - this is just a placeholder comment
-        // For production: use a proper configuration or environment variables system
-        // Example: For testing only - to be replaced with proper implementation
-        // await setupSendGridApiKey('your-api-key-from-secure-source');
       } catch (error) {
         console.error('Error during initialization:', error);
       } finally {
-        // Complete initialization and simulate auth check
-        setTimeout(() => {
-          setIsLoading(false);
-          // For testing, set to null to start with auth screens
-          setUserRole(null);
-        }, 1000);
+        // Complete initialization
+        setAppIsReady(true);
       }
     };
     
     initialize();
   }, []);
 
-  const handleLogin = (role, data = {}) => {
-    setUserRole(role);
-    setUserData(data);
-  };
-
-  const handleLogout = () => {
-    setUserRole(null);
-    setUserData(null);
-  };
-
-  if (isLoading) {
+  if (!appIsReady) {
     return null; // Or a loading screen
   }
 
   return (
     <ThemeProvider>
       <SafeAreaProvider>
-        <AuthProvider value={{ userRole, userData, handleLogin, handleLogout }}>
+        <AuthProvider>
           <NavigationContainer>
-            <ThemedStatusBar />
-            {userRole === 'admin' ? (
-              <AdminNavigator />
-            ) : userRole === 'mentor' ? (
-              <MentorNavigator />
-            ) : userRole === 'visitor' ? (
-              <VisitorNavigator />
-            ) : (
-              <AuthNavigator />
-            )}
+            <MainNavigator />
           </NavigationContainer>
         </AuthProvider>
       </SafeAreaProvider>
