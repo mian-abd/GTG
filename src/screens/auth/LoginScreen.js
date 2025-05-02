@@ -28,15 +28,23 @@ const LoginScreen = () => {
 
   // For demo, let's hardcode some credentials
   const validCredentials = {
-    admin: { email: 'admin@depauw.edu', password: 'mortonspeople' },
-    mentor: { email: 'mentor@depauw.edu', password: 'mortonspeople' },
-    visitor: { email: 'visitor@depauw.edu', password: 'mortonspeople' },
+    admin: [
+      { email: 'admin@depauw.edu', password: 'mortonspeople' },
+      { email: 'mianabdullah_2027@depauw.edu', password: 'mortonspeople' },
+      { email: 'precollegeprogram@depauw.edu', password: 'Gtg@2025' },
+    ],
+    mentor: [
+      { email: 'mentor@depauw.edu', password: 'mortonspeople' },
+    ],
+    visitor: [
+      { email: 'visitor@depauw.edu', password: 'mortonspeople' },
+    ],
   };
 
   // Set initial values based on role for demo purposes
   useEffect(() => {
     if (role === 'admin') {
-      setEmail('mlanabdullah_2027@depauw.com');
+      setEmail('mianabdullah_2027@depauw.edu');
     } else if (role === 'mentor') {
       setEmail('mentor@depauw.edu');
     } else {
@@ -45,12 +53,32 @@ const LoginScreen = () => {
   }, [role]);
 
   const handleLoginPress = () => {
-    // For demo, validate against hardcoded credentials
-    if (password === 'mortonspeople') {
-      handleLogin(role);
-    } else {
-      setErrorMessage('Invalid credentials. Please try again.');
+    if (role === 'admin') {
+      const found = validCredentials.admin.some(
+        cred => cred.email === email && cred.password === password
+      );
+      if (found) {
+        handleLogin(role);
+        return;
+      }
+    } else if (role === 'mentor') {
+      const found = validCredentials.mentor.some(
+        cred => cred.email === email && cred.password === password
+      );
+      if (found) {
+        handleLogin(role);
+        return;
+      }
+    } else if (role === 'visitor') {
+      const found = validCredentials.visitor.some(
+        cred => cred.email === email && cred.password === password
+      );
+      if (found) {
+        handleLogin(role);
+        return;
+      }
     }
+    setErrorMessage('Invalid credentials. Please try again.');
   };
 
   const getLoginTitle = () => {

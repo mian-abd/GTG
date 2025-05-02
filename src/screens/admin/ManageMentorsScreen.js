@@ -142,6 +142,142 @@ const AddMentorForm = ({ visible, onClose, onSubmit, isLoading }) => {
   );
 };
 
+// Create a separate component for the Edit Mentor Form to isolate state management
+const EditMentorForm = ({ visible, mentor, onClose, onSave, isLoading }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    department: '',
+    biography: '',
+  });
+
+  // Initialize form when mentor data changes
+  useEffect(() => {
+    if (mentor) {
+      setFormData({
+        name: mentor.name || '',
+        email: mentor.email || '',
+        department: mentor.department || '',
+        biography: mentor.biography || '',
+      });
+    }
+  }, [mentor]);
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSubmit = () => {
+    if (!formData.name.trim()) {
+      Alert.alert('Error', 'Name is required');
+      return;
+    }
+    
+    if (!formData.email.trim()) {
+      Alert.alert('Error', 'Email is required');
+      return;
+    }
+    
+    onSave(formData);
+  };
+
+  return (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <View style={styles.editModalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardAvoidingContainer}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+          enabled={Platform.OS === 'ios'}
+        >
+          <View style={styles.editModalContainer}>
+            <View style={styles.editModalHeader}>
+              <Text style={styles.editModalTitle}>Edit Mentor</Text>
+              <TouchableOpacity 
+                onPress={onClose}
+                hitSlop={{top: 20, right: 20, bottom: 20, left: 20}}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView 
+              contentContainerStyle={styles.editModalContent}
+              keyboardShouldPersistTaps="always"
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.inputLabel}>Name</Text>
+              <TextInput
+                style={styles.editInput}
+                value={formData.name}
+                onChangeText={(text) => handleInputChange('name', text)}
+                placeholder="Full Name"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.inputLabel}>Email</Text>
+              <TextInput
+                style={styles.editInput}
+                value={formData.email}
+                onChangeText={(text) => handleInputChange('email', text)}
+                placeholder="Email Address"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.inputLabel}>Department</Text>
+              <TextInput
+                style={styles.editInput}
+                value={formData.department}
+                onChangeText={(text) => handleInputChange('department', text)}
+                placeholder="Department"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.inputLabel}>Biography</Text>
+              <TextInput
+                style={[styles.editInput, styles.notesInput]}
+                value={formData.biography}
+                onChangeText={(text) => handleInputChange('biography', text)}
+                placeholder="Biography"
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                blurOnSubmit={true}
+              />
+              
+              <TouchableOpacity 
+                style={styles.saveButton}
+                onPress={handleSubmit}
+                disabled={isLoading}
+                activeOpacity={0.7}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Save Changes</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
+  );
+};
+
 const ManageMentorsScreen = () => {
   const [mentors, setMentors] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -151,21 +287,6 @@ const ManageMentorsScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [addFormVisible, setAddFormVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
-  
-  // Edit mentor form state
-  const [editName, setEditName] = useState('');
-  const [editEmail, setEditEmail] = useState('');
-  const [editDepartment, setEditDepartment] = useState('');
-  const [editBiography, setEditBiography] = useState('');
-  
-  // Open add form with a delay to ensure smooth transition
-  const openAddMentorForm = () => {
-    setAddModalVisible(false);
-    // Use a timeout to ensure the first modal is completely closed
-    setTimeout(() => {
-      setAddFormVisible(true);
-    }, 300);
-  };
   
   // Fetch mentors from Firebase
   useEffect(() => {
@@ -209,15 +330,14 @@ const ManageMentorsScreen = () => {
     setAddModalVisible(true);
   };
 
-  // Set up edit form when a mentor is selected for editing
-  useEffect(() => {
-    if (selectedMentor && editModalVisible) {
-      setEditName(selectedMentor.name || '');
-      setEditEmail(selectedMentor.email || '');
-      setEditDepartment(selectedMentor.department || '');
-      setEditBiography(selectedMentor.biography || '');
-    }
-  }, [selectedMentor, editModalVisible]);
+  // Open add form with a delay to ensure smooth transition
+  const openAddMentorForm = () => {
+    setAddModalVisible(false);
+    // Use a timeout to ensure the first modal is completely closed
+    setTimeout(() => {
+      setAddFormVisible(true);
+    }, 300);
+  };
 
   // Handle edit mentor
   const handleEditMentor = (mentor) => {
@@ -227,108 +347,39 @@ const ManageMentorsScreen = () => {
   };
 
   // Handle save mentor changes
-  const handleSaveMentorChanges = async () => {
-    if (!editName.trim()) {
-      Alert.alert('Error', 'Name is required');
-      return;
-    }
-    
-    if (!editEmail.trim()) {
-      Alert.alert('Error', 'Email is required');
-      return;
-    }
-    
+  const handleSaveMentorChanges = async (formData) => {
     try {
       setIsLoading(true);
       
       // Prepare updated mentor data
       const updatedMentorData = {
-        name: editName,
-        email: editEmail,
-        department: editDepartment,
-        biography: editBiography,
+        ...formData,
         updatedAt: new Date().toISOString()
       };
       
-      // Reset modal state first to prevent UI freezing
-      setEditModalVisible(false);
+      // Update in Firebase
+      await updateDocument('mentors', selectedMentor.id, updatedMentorData);
       
-      // Update the document in Firestore
-      const result = await updateDocument('mentors', selectedMentor.id, updatedMentorData);
+      // Update local state
+      setMentors(prev => 
+        prev.map(mentor => 
+          mentor.id === selectedMentor.id 
+            ? { ...mentor, ...updatedMentorData } 
+            : mentor
+        )
+      );
       
-      if (result) {
-        // Update the mentor in local state first
-        setMentors(prevMentors => prevMentors.map(mentor => 
-          mentor.id === selectedMentor.id ? { ...mentor, ...updatedMentorData } : mentor
-        ));
-        
-        // Small delay before showing alert
-        setTimeout(() => {
-          Alert.alert('Success', 'Mentor updated successfully');
-          // Reset selected mentor after alert is closed
-          setSelectedMentor(null);
-        }, 300);
-      } else {
-        setTimeout(() => {
-          Alert.alert('Error', 'Failed to update mentor');
-        }, 300);
-      }
+      Alert.alert(
+        'Success',
+        'Mentor updated successfully',
+        [{ text: 'OK', onPress: () => setEditModalVisible(false) }]
+      );
     } catch (error) {
       console.error('Error updating mentor:', error);
-      setTimeout(() => {
-        Alert.alert('Error', 'Failed to update mentor: ' + error.message);
-      }, 300);
+      Alert.alert('Error', 'Failed to update mentor. Please try again.');
     } finally {
-      // Always reset loading state
       setIsLoading(false);
     }
-  };
-
-  // Handle delete mentor
-  const handleDeleteMentor = async (mentor) => {
-    Alert.alert(
-      'Delete Mentor',
-      `Are you sure you want to delete ${mentor.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setIsLoading(true);
-              
-              // Close modal first to prevent UI freezing
-              setModalVisible(false);
-              
-              // If using Firebase
-              if (mentor.id) {
-                await deleteDocument('mentors', mentor.id);
-              }
-              
-              // Update local state
-              setMentors(prev => prev.filter(m => m.id !== mentor.id));
-              
-              // Reset selected mentor
-              setSelectedMentor(null);
-              
-              // Show success message after small delay
-              setTimeout(() => {
-                Alert.alert('Success', 'Mentor deleted successfully');
-              }, 300);
-              
-            } catch (error) {
-              console.error('Error deleting mentor:', error);
-              setTimeout(() => {
-                Alert.alert('Error', `Failed to delete mentor: ${error.message}`);
-              }, 300);
-            } finally {
-              setIsLoading(false);
-            }
-          }
-        }
-      ]
-    );
   };
 
   // Modified to accept form data directly and add token generation
@@ -1021,100 +1072,6 @@ const ManageMentorsScreen = () => {
     </Modal>
   );
 
-  // Edit Mentor Modal
-  const EditMentorModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={editModalVisible}
-      onRequestClose={() => setEditModalVisible(false)}
-    >
-      <View style={styles.editModalOverlay}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.keyboardAvoidingContainer}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-          enabled={Platform.OS === 'ios'}
-        >
-          <View style={styles.editModalContainer}>
-            <View style={styles.editModalHeader}>
-              <Text style={styles.editModalTitle}>Edit Mentor</Text>
-              <TouchableOpacity 
-                onPress={() => setEditModalVisible(false)}
-                hitSlop={{top: 20, right: 20, bottom: 20, left: 20}}
-              >
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView 
-              contentContainerStyle={styles.editModalContent}
-              keyboardShouldPersistTaps="always"
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={styles.inputLabel}>Name</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editName}
-                onChangeText={setEditName}
-                placeholder="Full Name"
-                returnKeyType="next"
-                blurOnSubmit={false}
-              />
-              
-              <Text style={styles.inputLabel}>Email</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editEmail}
-                onChangeText={setEditEmail}
-                placeholder="Email Address"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                returnKeyType="next"
-                blurOnSubmit={false}
-              />
-              
-              <Text style={styles.inputLabel}>Department</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editDepartment}
-                onChangeText={setEditDepartment}
-                placeholder="Department"
-                returnKeyType="next"
-                blurOnSubmit={false}
-              />
-              
-              <Text style={styles.inputLabel}>Biography</Text>
-              <TextInput
-                style={[styles.editInput, styles.notesInput]}
-                value={editBiography}
-                onChangeText={setEditBiography}
-                placeholder="Biography"
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-                blurOnSubmit={true}
-              />
-              
-              <TouchableOpacity 
-                style={styles.saveButton}
-                onPress={handleSaveMentorChanges}
-                disabled={isLoading}
-                activeOpacity={0.7}
-              >
-                {isLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.saveButtonText}>Save Changes</Text>
-                )}
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
-  );
-
   const renderMentorItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.mentorCard}
@@ -1203,7 +1160,13 @@ const ManageMentorsScreen = () => {
         onSubmit={handleAddMentorSubmit}
         isLoading={isLoading}
       />
-      <EditMentorModal />
+      <EditMentorForm
+        visible={editModalVisible}
+        mentor={selectedMentor}
+        onClose={() => setEditModalVisible(false)}
+        onSave={handleSaveMentorChanges}
+        isLoading={isLoading}
+      />
     </SafeAreaView>
   );
 };

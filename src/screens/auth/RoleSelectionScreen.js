@@ -29,8 +29,6 @@ const RoleSelectionScreen = () => {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#1A1A1A" />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.headerText}>(auth)/role-selection</Text>
-        
         <View style={styles.logoContainer}>
           <Image 
             source={require('../../assets/depauw_logo.png')} 
@@ -93,40 +91,6 @@ const RoleSelectionScreen = () => {
               <Text style={styles.continueButtonText}>Continue as Visitor</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Firebase Test Card */}
-          <View style={styles.roleCard}>
-            <View style={[styles.roleIconContainer, { backgroundColor: '#FF9800' }]}>
-              <Ionicons name="flame" size={32} color="#FFF" />
-            </View>
-            <Text style={styles.roleTitle}>Firebase Test</Text>
-            <Text style={styles.roleDescription}>
-              Test Firebase authentication, Firestore database, and Storage functionality.
-            </Text>
-            <TouchableOpacity 
-              style={[styles.continueButton, { backgroundColor: '#FF9800' }]}
-              onPress={() => navigation.navigate('FirebaseTest')}
-            >
-              <Text style={styles.continueButtonText}>Test Firebase</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* SendGrid Test Card */}
-          <View style={styles.roleCard}>
-            <View style={[styles.roleIconContainer, { backgroundColor: '#0084FF' }]}>
-              <Ionicons name="mail" size={32} color="#FFF" />
-            </View>
-            <Text style={styles.roleTitle}>SendGrid Test</Text>
-            <Text style={styles.roleDescription}>
-              Test email sending functionality using SendGrid integration.
-            </Text>
-            <TouchableOpacity 
-              style={[styles.continueButton, { backgroundColor: '#0084FF' }]}
-              onPress={() => navigation.navigate('SendGridTest')}
-            >
-              <Text style={styles.continueButtonText}>Test SendGrid</Text>
-            </TouchableOpacity>
-          </View>
         </View>
         
         <Text style={styles.footer}>DePauw University Pre-College Summer Program</Text>
@@ -147,11 +111,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 20,
-  },
-  headerText: {
-    color: '#888',
-    fontSize: 12,
-    marginBottom: 20,
   },
   logoContainer: {
     alignItems: 'center',

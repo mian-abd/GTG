@@ -26,6 +26,167 @@ import XLSX from 'xlsx';
 import { addDocument, getDocuments, updateDocument, deleteDocument, db } from '../../utils/firebaseConfig';
 import { collection, query, getDocs } from 'firebase/firestore';
 
+// Create a separate component for the Edit User Form to isolate state management
+const EditUserForm = ({ visible, user, onClose, onSave, isLoading }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    notes: '',
+    roomNumber: '',
+  });
+
+  // Initialize form when user data changes
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        address: user.address || '',
+        notes: user.notes || '',
+        roomNumber: user.roomNumber || '',
+      });
+    }
+  }, [user]);
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSubmit = () => {
+    if (!formData.name.trim()) {
+      Alert.alert('Error', 'Name is required');
+      return;
+    }
+    
+    if (!formData.email.trim()) {
+      Alert.alert('Error', 'Email is required');
+      return;
+    }
+    
+    onSave(formData);
+  };
+
+  return (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <View style={styles.editModalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardAvoidingContainer}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+          enabled={Platform.OS === 'ios'}
+        >
+          <View style={styles.editModalContainer}>
+            <View style={styles.editModalHeader}>
+              <Text style={styles.editModalTitle}>Edit User</Text>
+              <TouchableOpacity 
+                onPress={onClose}
+                hitSlop={{top: 20, right: 20, bottom: 20, left: 20}}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView 
+              contentContainerStyle={styles.editModalContent}
+              keyboardShouldPersistTaps="always"
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.inputLabel}>Name</Text>
+              <TextInput
+                style={styles.editInput}
+                value={formData.name}
+                onChangeText={(text) => handleInputChange('name', text)}
+                placeholder="Full Name"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.inputLabel}>Email</Text>
+              <TextInput
+                style={styles.editInput}
+                value={formData.email}
+                onChangeText={(text) => handleInputChange('email', text)}
+                placeholder="Email Address"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.inputLabel}>Phone</Text>
+              <TextInput
+                style={styles.editInput}
+                value={formData.phone}
+                onChangeText={(text) => handleInputChange('phone', text)}
+                placeholder="Phone Number"
+                keyboardType="phone-pad"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.inputLabel}>Room Number</Text>
+              <TextInput
+                style={styles.editInput}
+                value={formData.roomNumber}
+                onChangeText={(text) => handleInputChange('roomNumber', text)}
+                placeholder="Room Number"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.inputLabel}>Address</Text>
+              <TextInput
+                style={styles.editInput}
+                value={formData.address}
+                onChangeText={(text) => handleInputChange('address', text)}
+                placeholder="Address"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.inputLabel}>Notes</Text>
+              <TextInput
+                style={[styles.editInput, styles.notesInput]}
+                value={formData.notes}
+                onChangeText={(text) => handleInputChange('notes', text)}
+                placeholder="Additional Notes"
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                blurOnSubmit={true}
+              />
+              
+              <TouchableOpacity 
+                style={styles.saveButton}
+                onPress={handleSubmit}
+                disabled={isLoading}
+                activeOpacity={0.7}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Save Changes</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
+  );
+};
+
 const UserManagementScreen = () => {
   const navigation = useNavigation();
   const { handleLogout } = useAuth();
@@ -143,61 +304,37 @@ const UserManagementScreen = () => {
     );
   };
 
-  const handleSaveUserChanges = async () => {
-    if (!editName.trim()) {
-      Alert.alert('Error', 'Name is required');
-      return;
-    }
-    
-    if (!editEmail.trim()) {
-      Alert.alert('Error', 'Email is required');
-      return;
-    }
-    
+  const handleSaveUserChanges = async (formData) => {
     try {
       setIsLoading(true);
       
       // Prepare updated user data
       const updatedUserData = {
-        name: editName,
-        email: editEmail,
-        phone: editPhone,
-        address: editAddress,
-        notes: editNotes,
-        roomNumber: editRoomNumber,
+        ...formData,
         updatedAt: new Date().toISOString()
       };
-      
-      // Reset modal state first to prevent UI freezing
-      setEditUserModalVisible(false);
       
       // Update the document in Firestore
       const result = await updateDocument('students', selectedUser.id, updatedUserData);
       
       if (result) {
-        // Update the user in local state first
+        // Update the user in local state
         setUsers(prevUsers => prevUsers.map(user => 
           user.id === selectedUser.id ? { ...user, ...updatedUserData } : user
         ));
         
-        // Small delay before showing alert
-        setTimeout(() => {
-          Alert.alert('Success', 'User updated successfully');
-          // Reset selected user after alert is closed
-          setSelectedUser(null);
-        }, 300);
+        Alert.alert(
+          'Success',
+          'User updated successfully',
+          [{ text: 'OK', onPress: () => setEditUserModalVisible(false) }]
+        );
       } else {
-        setTimeout(() => {
-          Alert.alert('Error', 'Failed to update user');
-        }, 300);
+        Alert.alert('Error', 'Failed to update user');
       }
     } catch (error) {
       console.error('Error updating user:', error);
-      setTimeout(() => {
-        Alert.alert('Error', 'Failed to update user: ' + error.message);
-      }, 300);
+      Alert.alert('Error', 'Failed to update user: ' + error.message);
     } finally {
-      // Always reset loading state
       setIsLoading(false);
     }
   };
@@ -686,121 +823,6 @@ const UserManagementScreen = () => {
     </Modal>
   );
 
-  // Edit User Modal
-  const EditUserModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={editUserModalVisible}
-      onRequestClose={() => setEditUserModalVisible(false)}
-    >
-      <View style={styles.editModalOverlay}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.keyboardAvoidingContainer}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-          enabled={Platform.OS === 'ios'}
-        >
-          <View style={styles.editModalContainer}>
-            <View style={styles.editModalHeader}>
-              <Text style={styles.editModalTitle}>Edit User</Text>
-              <TouchableOpacity 
-                onPress={() => setEditUserModalVisible(false)}
-                hitSlop={{top: 20, right: 20, bottom: 20, left: 20}}
-              >
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView 
-              contentContainerStyle={styles.editModalContent}
-              keyboardShouldPersistTaps="always"
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={styles.inputLabel}>Name</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editName}
-                onChangeText={setEditName}
-                placeholder="Full Name"
-                returnKeyType="next"
-                blurOnSubmit={false}
-              />
-              
-              <Text style={styles.inputLabel}>Email</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editEmail}
-                onChangeText={setEditEmail}
-                placeholder="Email Address"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                returnKeyType="next"
-                blurOnSubmit={false}
-              />
-              
-              <Text style={styles.inputLabel}>Phone</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editPhone}
-                onChangeText={setEditPhone}
-                placeholder="Phone Number"
-                keyboardType="phone-pad"
-                returnKeyType="next"
-                blurOnSubmit={false}
-              />
-              
-              <Text style={styles.inputLabel}>Room Number</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editRoomNumber}
-                onChangeText={setEditRoomNumber}
-                placeholder="Room Number"
-                returnKeyType="next"
-                blurOnSubmit={false}
-              />
-              
-              <Text style={styles.inputLabel}>Address</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editAddress}
-                onChangeText={setEditAddress}
-                placeholder="Address"
-                returnKeyType="next"
-                blurOnSubmit={false}
-              />
-              
-              <Text style={styles.inputLabel}>Notes</Text>
-              <TextInput
-                style={[styles.editInput, styles.notesInput]}
-                value={editNotes}
-                onChangeText={setEditNotes}
-                placeholder="Additional Notes"
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-                blurOnSubmit={true}
-              />
-              
-              <TouchableOpacity 
-                style={styles.saveButton}
-                onPress={handleSaveUserChanges}
-                disabled={isLoading}
-                activeOpacity={0.7}
-              >
-                {isLoading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.saveButtonText}>Save Changes</Text>
-                )}
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </View>
-    </Modal>
-  );
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
@@ -859,7 +881,13 @@ const UserManagementScreen = () => {
 
       <AddOptionModal />
       <UserActionModal />
-      <EditUserModal />
+      <EditUserForm
+        visible={editUserModalVisible}
+        user={selectedUser}
+        onClose={() => setEditUserModalVisible(false)}
+        onSave={handleSaveUserChanges}
+        isLoading={isLoading}
+      />
 
       {/* Loading Indicator */}
       {isLoading && (
