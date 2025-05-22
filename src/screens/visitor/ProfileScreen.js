@@ -25,9 +25,7 @@ const ProfileScreen = () => {
   const { theme, isDarkMode, toggleTheme, useSystemTheme, enableSystemTheme } = useTheme();
   
   // State for settings switches
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [useDeviceTheme, setUseDeviceTheme] = useState(useSystemTheme);
-  const [locationEnabled, setLocationEnabled] = useState(true);
   
   // Sync darkMode state with the theme context
   useEffect(() => {
@@ -159,35 +157,11 @@ const ProfileScreen = () => {
       </View>
       
       <View style={[styles.settingRow, { borderBottomColor: theme.colors.border }]}>
-        <Ionicons name="notifications-outline" size={22} color={theme.colors.text.secondary} />
-        <Text style={[styles.settingText, { color: theme.colors.text.primary }]}>Notifications</Text>
-        <Switch
-          value={notificationsEnabled}
-          onValueChange={setNotificationsEnabled}
-          trackColor={{ false: theme.colors.background.tertiary, true: theme.colors.primary }}
-          thumbColor="#fff"
-          style={styles.settingSwitch}
-        />
-      </View>
-      
-      <View style={[styles.settingRow, { borderBottomColor: theme.colors.border }]}>
         <Ionicons name="moon-outline" size={22} color={theme.colors.text.secondary} />
         <Text style={[styles.settingText, { color: theme.colors.text.primary }]}>Dark Mode</Text>
         <Switch
           value={isDarkMode}
           onValueChange={handleThemeToggle}
-          trackColor={{ false: theme.colors.background.tertiary, true: theme.colors.primary }}
-          thumbColor="#fff"
-          style={styles.settingSwitch}
-        />
-      </View>
-      
-      <View style={[styles.settingRow, { borderBottomColor: theme.colors.border }]}>
-        <Ionicons name="location-outline" size={22} color={theme.colors.text.secondary} />
-        <Text style={[styles.settingText, { color: theme.colors.text.primary }]}>Location Services</Text>
-        <Switch
-          value={locationEnabled}
-          onValueChange={setLocationEnabled}
           trackColor={{ false: theme.colors.background.tertiary, true: theme.colors.primary }}
           thumbColor="#fff"
           style={styles.settingSwitch}

@@ -33,8 +33,55 @@ const VisitorHomeScreen = () => {
     navigation.navigate('ScheduleTab');
   };
 
-  const handleAbout = () => {
-    // Navigate to About section
+  const handleAbout = async () => {
+    // Navigate to About section - Pre-College Program page
+    const url = 'https://www.depauw.edu/admission-aid/visit-events/precollegeprogram/';
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        console.log("Cannot open URL: " + url);
+        Alert.alert("Error", "Cannot open the DePauw website");
+      }
+    } catch (error) {
+      console.error("Error opening URL:", error);
+      Alert.alert("Error", "Cannot open the DePauw website");
+    }
+  };
+
+  const handleCampusLife = async () => {
+    // Open DePauw University campus life webpage
+    const url = 'https://www.depauw.edu/campus-life/';
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        console.log("Cannot open URL: " + url);
+        Alert.alert("Error", "Cannot open the DePauw website");
+      }
+    } catch (error) {
+      console.error("Error opening URL:", error);
+      Alert.alert("Error", "Cannot open the DePauw website");
+    }
+  };
+
+  const handleAcademicExcellence = async () => {
+    // Open DePauw University admission and aid webpage
+    const url = 'https://www.depauw.edu/admission-aid/?utm_source=google&utm_medium=cpc&utm_campaign=depauw_brand_search_jan-june_2025&utm_content=brand&utm_source=googlead&utm_medium=cpc&utm_campaign=(campaignid)&dynamic_id=(_dynamicid)&gad_source=1&gad_campaignid=22081412329&gbraid=0AAAAAo3lUvt0xKLBNA6KrIwCtuwOAdGW1&gclid=Cj0KCQjwlrvBBhDnARIsAHEQgOTXev-J92DbXxBc6jmxCpKgt24N_HPrTXQL83VZFU6tk2o9PHhWovwaAtdQEALw_wcB';
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        console.log("Cannot open URL: " + url);
+        Alert.alert("Error", "Cannot open the DePauw website");
+      }
+    } catch (error) {
+      console.error("Error opening URL:", error);
+      Alert.alert("Error", "Cannot open the DePauw website");
+    }
   };
 
   const handleBrowsePaths = async () => {
@@ -72,7 +119,7 @@ const VisitorHomeScreen = () => {
         }]}>
           <View style={styles.logoContainer}>
             <Ionicons name="school" size={24} color={theme.colors.primary} />
-            <Text style={[styles.headerTitle, { color: theme.colors.text.primary }]}>Visitor Portal</Text>
+            <Text style={[styles.headerTitle, { color: theme.colors.text.primary }]}>Student Portal</Text>
           </View>
           <TouchableOpacity style={styles.profileButton}>
             <Ionicons name="person-circle" size={28} color={theme.colors.text.primary} />
@@ -136,10 +183,13 @@ const VisitorHomeScreen = () => {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.highlightsContainer}
           >
-            <View style={[styles.highlightCard, { 
-              backgroundColor: theme.colors.card,
-              borderColor: theme.colors.border
-            }]}>
+            <TouchableOpacity
+              onPress={handleCampusLife}
+              style={[styles.highlightCard, { 
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border
+              }]}
+            >
               <View style={styles.highlightIconContainer}>
                 <Ionicons name="home" size={24} color={theme.colors.primary} />
               </View>
@@ -147,12 +197,15 @@ const VisitorHomeScreen = () => {
               <Text style={[styles.highlightDescription, { color: theme.colors.text.secondary }]}>
                 Experience life at DePauw University's beautiful campus
               </Text>
-            </View>
+            </TouchableOpacity>
 
-            <View style={[styles.highlightCard, { 
-              backgroundColor: theme.colors.card,
-              borderColor: theme.colors.border
-            }]}>
+            <TouchableOpacity
+              onPress={handleAcademicExcellence}
+              style={[styles.highlightCard, { 
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border
+              }]}
+            >
               <View style={styles.highlightIconContainer}>
                 <Ionicons name="school" size={24} color={theme.colors.primary} />
               </View>
@@ -160,7 +213,7 @@ const VisitorHomeScreen = () => {
               <Text style={[styles.highlightDescription, { color: theme.colors.text.secondary }]}>
                 Learn from outstanding faculty in small-group settings
               </Text>
-            </View>
+            </TouchableOpacity>
 
             <View style={[styles.highlightCard, { 
               backgroundColor: theme.colors.card,
