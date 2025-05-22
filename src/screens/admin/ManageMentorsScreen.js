@@ -874,7 +874,14 @@ const ManageMentorsScreen = () => {
           continue;
         }
         
-        // Prepare mentor data
+        // Generate a token automatically for login
+        const token = generateUniqueToken();
+        
+        // Set token expiration 100 years in the future
+        const tokenExpires = new Date();
+        tokenExpires.setFullYear(tokenExpires.getFullYear() + 100);
+        
+        // Prepare mentor data with token
         const mentorData = {
           name: mentor.name,
           email: mentor.email,
@@ -884,11 +891,16 @@ const ManageMentorsScreen = () => {
           status: 'active',
           students: [],
           createdAt: new Date().toISOString(),
+          // Add token fields
+          verificationToken: token,
+          tokenCreatedAt: new Date().toISOString(),
+          tokenExpires: tokenExpires.toISOString(),
+          isVerified: true
         };
         
         try {
           // Add the mentor to Firestore
-          console.log(`Adding mentor: ${mentor.name}`);
+          console.log(`Adding mentor: ${mentor.name} with token: ${token}`);
           await addDocument('mentors', mentorData);
           importedCount++;
           console.log(`Successfully added mentor: ${mentor.name}`);
@@ -904,6 +916,56 @@ const ManageMentorsScreen = () => {
       console.error('Error importing mentors to Firebase:', error);
       throw error;
     }
+  };
+
+  // Function to handle mentor deletion
+  const handleDeleteMentor = async (mentor) => {
+    if (!mentor || !mentor.id) {
+      Alert.alert('Error', 'Invalid mentor data');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Mentor',
+      `Are you sure you want to delete ${mentor.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsLoading(true);
+              setModalVisible(false);
+              
+              // Delete from Firebase
+              const success = await deleteDocument('mentors', mentor.id);
+              
+              if (success) {
+                // Update local state
+                setMentors(prev => prev.filter(m => m.id !== mentor.id));
+                
+                // Show success message
+                setTimeout(() => {
+                  Alert.alert('Success', `${mentor.name} has been deleted`);
+                }, 500);
+              } else {
+                setTimeout(() => {
+                  Alert.alert('Error', 'Failed to delete mentor');
+                }, 500);
+              }
+            } catch (error) {
+              console.error('Error deleting mentor:', error);
+              setTimeout(() => {
+                Alert.alert('Error', `Failed to delete mentor: ${error.message}`);
+              }, 500);
+            } finally {
+              setIsLoading(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   // Add Option Modal
@@ -1318,14 +1380,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexDirection: 'column',
     marginTop: 20,
+    gap: 10,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
     justifyContent: 'center',

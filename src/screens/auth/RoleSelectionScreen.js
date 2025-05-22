@@ -80,7 +80,7 @@ const RoleSelectionScreen = () => {
             <View style={[styles.roleIconContainer, { backgroundColor: '#E74C3C' }]}>
               <Ionicons name="person" size={32} color="#FFF" />
             </View>
-            <Text style={styles.roleTitle}>Visitor</Text>
+            <Text style={styles.roleTitle}>Student</Text>
             <Text style={styles.roleDescription}>
               Explore available resources, connect with mentors, and participate in learning activities.
             </Text>
@@ -88,7 +88,7 @@ const RoleSelectionScreen = () => {
               style={styles.continueButton}
               onPress={() => handleRoleSelect('visitor')}
             >
-              <Text style={styles.continueButtonText}>Continue as Visitor</Text>
+              <Text style={styles.continueButtonText}>Continue as Student</Text>
             </TouchableOpacity>
           </View>
         </View>

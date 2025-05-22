@@ -119,7 +119,7 @@ const VisitorLoginScreen = () => {
             />
           </View>
           
-          <Text style={styles.title}>Visitor Login</Text>
+          <Text style={styles.title}>Student Login</Text>
           
           {isLoading && (
             <View style={styles.loadingOverlay}>

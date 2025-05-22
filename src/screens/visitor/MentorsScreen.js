@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -8,124 +8,310 @@ import {
   TouchableOpacity, 
   TextInput,
   SafeAreaView,
-  Linking
+  Linking,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../context/ThemeContext';
+import { getDocuments } from '../../utils/firebaseConfig';
+import { COLORS } from '../../assets';
 
-// Import demo data and helpers
-import { MENTORS, STUDENTS } from '../../utils/demoData';
+// Import helpers
 import { getInitials, truncateText } from '../../utils/helpers';
 
-// Using first student as the current visitor
-const currentStudent = STUDENTS[0];
-
 const MentorsScreen = ({ navigation }) => {
+  const { theme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
+  const [mentors, setMentors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentStudent, setCurrentStudent] = useState(null);
+  
+  // Define styles inside the component to have access to theme
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    header: {
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 10,
+    },
+    screenTitle: {
+      fontSize: 22,
+      fontWeight: 'bold',
+      marginLeft: 6,
+    },
+    searchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      marginHorizontal: 16,
+      marginVertical: 8,
+    },
+    searchIcon: {
+      marginRight: 6,
+    },
+    searchInput: {
+      flex: 1,
+      height: 32,
+      fontSize: 14,
+    },
+    clearButton: {
+      padding: 4,
+    },
+    mentorsList: {
+      padding: 10,
+      paddingTop: 4,
+    },
+    mentorCard: {
+      borderRadius: 10,
+      marginBottom: 8,
+      padding: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.06,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    mentorHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    mentorImage: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      marginRight: 10,
+    },
+    initialsContainer: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 10,
+    },
+    initials: {
+      color: '#fff',
+      fontSize: 16,
+      fontWeight: 'bold',
+    },
+    mentorTitleContainer: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    mentorName: {
+      fontSize: 16,
+      fontWeight: '600',
+      marginBottom: 1,
+    },
+    myMentorBadge: {
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 8,
+      marginLeft: 6,
+      marginRight: 6,
+    },
+    myMentorText: {
+      fontSize: 10,
+      fontWeight: '600',
+    },
+    department: {
+      fontSize: 12,
+    },
+    contactButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderRadius: 8,
+      alignSelf: 'center',
+      width: '60%',
+    },
+    actionIcon: {
+      marginRight: 4,
+    },
+    actionText: {
+      color: '#fff',
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    emptyStateContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 24,
+      marginTop: 24,
+    },
+    emptyStateTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      marginTop: 12,
+      marginBottom: 4,
+    },
+    emptyStateText: {
+      fontSize: 13,
+      textAlign: 'center',
+      lineHeight: 18,
+    },
+    emptyStateIconContainer: {
+      padding: 14,
+      borderRadius: 8,
+      marginBottom: 10,
+    },
+  });
+  
+  // Fetch mentors and current student data
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch mentors from Firestore
+        const mentorsData = await getDocuments('mentors');
+        console.log(`Fetched ${mentorsData.length} mentors from database`);
+        setMentors(mentorsData);
+        
+        // Get current student from AuthContext or another source
+        const studentsData = await getDocuments('students');
+        if (studentsData.length > 0) {
+          setCurrentStudent(studentsData[0]);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
   
   // Filter mentors based on search query
-  const filteredMentors = MENTORS.filter(mentor => 
-    searchQuery === '' || 
-    mentor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    mentor.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    mentor.biography.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredMentors = mentors
+    .filter(mentor => 
+      searchQuery === '' || 
+      (mentor.name && mentor.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (mentor.department && mentor.department.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (mentor.biography && mentor.biography.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
+    .sort((a, b) => {
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
   
   // Check if current student is assigned to this mentor
   const isMyMentor = (mentorId) => {
-    return currentStudent.mentorId === mentorId;
+    return currentStudent && currentStudent.mentorId === mentorId;
   };
   
   const handleContactMentor = (email) => {
-    Linking.openURL(`mailto:${email}`);
-  };
-  
-  const handleViewProfile = (mentor) => {
-    // Will navigate to mentor profile detail screen in future
-    console.log('View mentor profile:', mentor.id);
+    if (email) {
+      Linking.openURL(`mailto:${email}`);
+    }
   };
   
   const renderMentor = ({ item }) => {
     const isMine = isMyMentor(item.id);
     
+    // Handle possible missing data
+    const name = item.name || 'Unknown Mentor';
+    const department = item.department || '';
+    const email = item.email || '';
+    
     return (
-      <TouchableOpacity 
-        style={styles.mentorCard}
-        onPress={() => handleViewProfile(item)}
-      >
-        {item.profileImageUrl ? (
-          <Image source={{ uri: item.profileImageUrl }} style={styles.mentorImage} />
-        ) : (
-          <View style={styles.initialsContainer}>
-            <Text style={styles.initials}>{getInitials(item.name)}</Text>
-          </View>
-        )}
-        
-        <View style={styles.mentorInfo}>
-          <View style={styles.nameContainer}>
-            <Text style={styles.mentorName}>{item.name}</Text>
-            {isMine && (
-              <View style={styles.myMentorBadge}>
-                <Text style={styles.myMentorText}>My Mentor</Text>
-              </View>
+      <View style={[styles.mentorCard, { backgroundColor: theme.colors.card }]}>
+        <View style={styles.mentorHeader}>
+          {item.profileImageUrl ? (
+            <Image source={{ uri: item.profileImageUrl }} style={styles.mentorImage} />
+          ) : (
+            <View style={[styles.initialsContainer, { backgroundColor: theme.colors.primary }]}>
+              <Text style={styles.initials}>{getInitials(name)}</Text>
+            </View>
+          )}
+          
+          <View style={styles.mentorTitleContainer}>
+            <Text style={[styles.mentorName, { color: theme.colors.text.primary }]}>{name}</Text>
+            {department && (
+              <Text style={[styles.department, { color: theme.colors.text.secondary }]}>
+                {department}
+              </Text>
             )}
           </View>
           
-          <Text style={styles.department}>{item.department}</Text>
-          <Text style={styles.biography}>{truncateText(item.biography, 100)}</Text>
-          
-          <View style={styles.stats}>
-            <View style={styles.statItem}>
-              <Ionicons name="people-outline" size={16} color="#666" />
-              <Text style={styles.statText}>{item.students.length} Students</Text>
+          {isMine && (
+            <View style={[styles.myMentorBadge, { backgroundColor: theme.mode === 'dark' ? '#2A3A6A' : '#e8f4ff' }]}>
+              <Text style={[styles.myMentorText, { color: theme.mode === 'dark' ? '#a4b7f0' : '#4e73df' }]}>My Mentor</Text>
             </View>
-          </View>
-          
-          <View style={styles.actions}>
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.contactButton]} 
-              onPress={() => handleContactMentor(item.email)}
-            >
-              <Ionicons name="mail-outline" size={16} color="#fff" style={styles.actionIcon} />
-              <Text style={styles.actionText}>Contact</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={[styles.actionButton, styles.scheduleButton]}>
-              <Ionicons name="calendar-outline" size={16} color="#fff" style={styles.actionIcon} />
-              <Text style={styles.actionText}>Schedule</Text>
-            </TouchableOpacity>
-          </View>
+          )}
         </View>
-      </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.contactButton, { backgroundColor: theme.colors.primary }]} 
+          onPress={() => handleContactMentor(email)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="mail-outline" size={14} color="#fff" style={styles.actionIcon} />
+          <Text style={styles.actionText}>Contact</Text>
+        </TouchableOpacity>
+      </View>
     );
   };
   
-  const renderEmptyState = () => (
-    <View style={styles.emptyStateContainer}>
-      <Ionicons name="people-outline" size={64} color="#ccc" />
-      <Text style={styles.emptyStateTitle}>No mentors found</Text>
-      <Text style={styles.emptyStateText}>
-        Try adjusting your search criteria
-      </Text>
-    </View>
-  );
+  const renderEmptyState = () => {
+    if (loading) {
+      return (
+        <View style={styles.emptyStateContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} style={{marginBottom: 16}} />
+          <Text style={[styles.emptyStateTitle, { color: theme.colors.text.primary }]}>
+            Loading mentors
+          </Text>
+          <Text style={[styles.emptyStateText, { color: theme.colors.text.secondary }]}>
+            Please wait while we fetch the mentors
+          </Text>
+        </View>
+      );
+    }
+    
+    return (
+      <View style={styles.emptyStateContainer}>
+        <View style={[styles.emptyStateIconContainer, { backgroundColor: theme.colors.background.tertiary }]}>
+          <Ionicons name="people-outline" size={48} color={theme.colors.primary} />
+        </View>
+        <Text style={[styles.emptyStateTitle, { color: theme.colors.text.primary }]}>No mentors found</Text>
+        <Text style={[styles.emptyStateText, { color: theme.colors.text.secondary }]}>
+          Try adjusting your search criteria or check back later
+        </Text>
+      </View>
+    );
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.screenTitle}>Mentors</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      <View style={[styles.header, { 
+        backgroundColor: theme.colors.background.secondary, 
+        borderBottomColor: theme.colors.border,
+        borderBottomWidth: 1
+      }]}>
+        <Text style={[styles.screenTitle, { color: theme.colors.text.primary }]}>Mentors</Text>
       </View>
       
-      <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={20} color="#999" style={styles.searchIcon} />
+      <View style={[styles.searchContainer, { backgroundColor: theme.colors.background.tertiary }]}>
+        <Ionicons name="search-outline" size={20} color={theme.colors.text.tertiary} style={styles.searchIcon} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: theme.colors.text.primary }]}
           placeholder="Search mentors..."
+          placeholderTextColor={theme.colors.text.tertiary}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery !== '' && (
           <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
-            <Ionicons name="close-circle" size={20} color="#999" />
+            <Ionicons name="close-circle" size={20} color={theme.colors.text.tertiary} />
           </TouchableOpacity>
         )}
       </View>
@@ -133,7 +319,7 @@ const MentorsScreen = ({ navigation }) => {
       <FlatList
         data={filteredMentors}
         renderItem={renderMentor}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={item => item.id}
         contentContainerStyle={styles.mentorsList}
         ListEmptyComponent={renderEmptyState}
         showsVerticalScrollIndicator={false}
@@ -142,173 +328,4 @@ const MentorsScreen = ({ navigation }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  header: {
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e1e1e1',
-  },
-  screenTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e1e1e1',
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: 40,
-    fontSize: 16,
-    color: '#333',
-  },
-  clearButton: {
-    padding: 4,
-  },
-  mentorsList: {
-    padding: 16,
-  },
-  mentorCard: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginBottom: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  mentorImage: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    marginRight: 16,
-  },
-  initialsContainer: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#4e73df',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  initials: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  mentorInfo: {
-    flex: 1,
-  },
-  nameContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  mentorName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginRight: 8,
-  },
-  myMentorBadge: {
-    backgroundColor: '#e8f4ff',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-  },
-  myMentorText: {
-    color: '#4e73df',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  department: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-  },
-  biography: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  stats: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  statText: {
-    fontSize: 13,
-    color: '#666',
-    marginLeft: 4,
-  },
-  actions: {
-    flexDirection: 'row',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  contactButton: {
-    backgroundColor: '#4e73df',
-  },
-  scheduleButton: {
-    backgroundColor: '#f9a826',
-  },
-  actionIcon: {
-    marginRight: 6,
-  },
-  actionText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  emptyStateContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#888',
-    textAlign: 'center',
-  },
-});
-
-export default MentorsScreen; 
+export default MentorsScreen;

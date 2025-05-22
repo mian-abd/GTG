@@ -15,7 +15,8 @@ import {
   deleteDoc,
   where,
   orderBy,
-  limit
+  limit,
+  setDoc
 } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -59,13 +60,24 @@ export const logoutUser = async () => {
 };
 
 // Firestore functions
-export const addDocument = async (collectionName, data) => {
+export const addDocument = async (collectionName, data, documentId = null) => {
   try {
-    const docRef = await addDoc(collection(db, collectionName), {
-      ...data,
-      createdAt: serverTimestamp()
-    });
-    return docRef.id;
+    if (documentId) {
+      // Use the provided document ID
+      const docRef = doc(db, collectionName, documentId);
+      await setDoc(docRef, {
+        ...data,
+        createdAt: serverTimestamp()
+      });
+      return documentId;
+    } else {
+      // Let Firestore generate a document ID
+      const docRef = await addDoc(collection(db, collectionName), {
+        ...data,
+        createdAt: serverTimestamp()
+      });
+      return docRef.id;
+    }
   } catch (error) {
     console.error('Add document error:', error);
     throw error;

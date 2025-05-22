@@ -73,18 +73,63 @@ export const findStudentByEmail = async (email) => {
  */
 export const findStudentByToken = async (token) => {
   try {
-    const studentsRef = collection(db, 'students');
-    const q = query(studentsRef, where('verificationToken', '==', token));
-    const querySnapshot = await getDocs(q);
+    console.log(`Finding student with token: "${token}"`);
     
+    // Normalize token by removing whitespace and ensuring it's a string
+    const normalizedToken = String(token).trim();
+    
+    if (!normalizedToken) {
+      console.log('Token is empty after normalization');
+      return null;
+    }
+    
+    // Log more details about the token
+    console.log(`Searching for normalized token: "${normalizedToken}", length: ${normalizedToken.length}`);
+    
+    // Try to find by exact match first
+    const studentsRef = collection(db, 'students');
+    const q = query(studentsRef, where('verificationToken', '==', normalizedToken));
+    let querySnapshot = await getDocs(q);
+    
+    // If no results, try with different formats
     if (querySnapshot.empty) {
-      console.log('No student found with token:', token);
+      console.log('No exact match found, trying secondary search...');
+      
+      // Get all students and filter manually for more flexible matching
+      const allStudentsQuery = query(collection(db, 'students'));
+      const allStudentsSnapshot = await getDocs(allStudentsQuery);
+      
+      // Find any student with a token that matches when normalized
+      const matchingDocs = [];
+      allStudentsSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.verificationToken) {
+          const storedToken = String(data.verificationToken).trim();
+          console.log(`Comparing stored token: "${storedToken}" with input token: "${normalizedToken}"`);
+          
+          if (storedToken === normalizedToken) {
+            console.log(`Found matching token in document: ${doc.id}`);
+            matchingDocs.push(doc);
+          }
+        }
+      });
+      
+      if (matchingDocs.length > 0) {
+        const studentDoc = matchingDocs[0];
+        console.log(`Found student with matching token: ${studentDoc.id}`);
+        return {
+          id: studentDoc.id,
+          ...studentDoc.data()
+        };
+      }
+      
+      console.log('No student found with token after extensive search');
       return null;
     }
     
     // Return the first matching student
     const studentDoc = querySnapshot.docs[0];
-    console.log('Found student with token:', token, studentDoc.id);
+    console.log(`Found student with token: ${studentDoc.id}`);
     return {
       id: studentDoc.id,
       ...studentDoc.data()

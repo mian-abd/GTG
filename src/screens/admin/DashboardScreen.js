@@ -285,19 +285,19 @@ const DashboardScreen = () => {
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Visitor Status</Text>
+              <Text style={styles.sectionTitle}>Student Status</Text>
               <TouchableOpacity 
                 style={styles.manageButton}
                 onPress={handleManageVisitors}
               >
-                <Text style={styles.manageButtonText}>Manage Visitors</Text>
+                <Text style={styles.manageButtonText}>Manage Students</Text>
               </TouchableOpacity>
             </View>
 
             {loading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#F9A826" />
-                <Text style={styles.loadingText}>Loading visitors...</Text>
+                <Text style={styles.loadingText}>Loading students...</Text>
               </View>
             ) : students.length > 0 ? (
               <View style={styles.studentsContainer}>
@@ -312,7 +312,7 @@ const DashboardScreen = () => {
                       onPress={handleViewAllUsers}
                     >
                       <Text style={styles.viewMoreText}>
-                        View {students.length - 5} more visitors
+                        View {students.length - 5} more students
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -321,7 +321,7 @@ const DashboardScreen = () => {
             ) : (
               <View style={styles.noVisitorsContainer}>
                 <Text style={styles.noVisitorsText}>
-                  No visitors found. Add visitors through the Manage Visitors page.
+                  No students found. Add students through the Manage Students page.
                 </Text>
               </View>
             )}

@@ -25,6 +25,7 @@ import Papa from 'papaparse';
 import XLSX from 'xlsx';
 import { addDocument, getDocuments, updateDocument, deleteDocument, db } from '../../utils/firebaseConfig';
 import { collection, query, getDocs } from 'firebase/firestore';
+import { generateUniqueToken, generateUniqueStudentId } from '../../utils/tokenService';
 
 // Create a separate component for the Edit User Form to isolate state management
 const EditUserForm = ({ visible, user, onClose, onSave, isLoading }) => {
@@ -33,8 +34,13 @@ const EditUserForm = ({ visible, user, onClose, onSave, isLoading }) => {
     email: '',
     phone: '',
     address: '',
-    notes: '',
     roomNumber: '',
+    courseSelection: '',
+    dietaryNeeds: '',
+    medicalInfo: '',
+    emergencyContactName: '',
+    emergencyContactPhone: '',
+    emergencyContactEmail: '',
   });
 
   // Initialize form when user data changes
@@ -45,8 +51,13 @@ const EditUserForm = ({ visible, user, onClose, onSave, isLoading }) => {
         email: user.email || '',
         phone: user.phone || '',
         address: user.address || '',
-        notes: user.notes || '',
         roomNumber: user.roomNumber || '',
+        courseSelection: user.courseSelection || '',
+        dietaryNeeds: user.dietaryNeeds || '',
+        medicalInfo: user.medicalInfo || '',
+        emergencyContactName: user.emergencyContact?.name || '',
+        emergencyContactPhone: user.emergencyContact?.phone || '',
+        emergencyContactEmail: user.emergencyContact?.email || '',
       });
     }
   }, [user]);
@@ -59,17 +70,35 @@ const EditUserForm = ({ visible, user, onClose, onSave, isLoading }) => {
   };
 
   const handleSubmit = () => {
-    if (!formData.name.trim()) {
-      Alert.alert('Error', 'Name is required');
-      return;
-    }
-    
     if (!formData.email.trim()) {
       Alert.alert('Error', 'Email is required');
       return;
     }
     
-    onSave(formData);
+    // Prepare emergency contact data
+    const emergencyContact = (formData.emergencyContactName || formData.emergencyContactPhone || formData.emergencyContactEmail) 
+      ? {
+          name: formData.emergencyContactName,
+          phone: formData.emergencyContactPhone,
+          email: formData.emergencyContactEmail,
+          relationship: user.emergencyContact?.relationship || 'Parent/Guardian'
+        }
+      : null;
+    
+    // Prepare the data for saving
+    const updatedData = {
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      address: formData.address,
+      roomNumber: formData.roomNumber,
+      courseSelection: formData.courseSelection,
+      dietaryNeeds: formData.dietaryNeeds,
+      medicalInfo: formData.medicalInfo,
+      emergencyContact,
+    };
+    
+    onSave(updatedData);
   };
 
   return (
@@ -88,7 +117,7 @@ const EditUserForm = ({ visible, user, onClose, onSave, isLoading }) => {
         >
           <View style={styles.editModalContainer}>
             <View style={styles.editModalHeader}>
-              <Text style={styles.editModalTitle}>Edit User</Text>
+              <Text style={styles.editModalTitle}>Edit Student</Text>
               <TouchableOpacity 
                 onPress={onClose}
                 hitSlop={{top: 20, right: 20, bottom: 20, left: 20}}
@@ -155,15 +184,74 @@ const EditUserForm = ({ visible, user, onClose, onSave, isLoading }) => {
                 blurOnSubmit={false}
               />
               
-              <Text style={styles.inputLabel}>Notes</Text>
+              <Text style={styles.inputLabel}>Course Selection</Text>
               <TextInput
-                style={[styles.editInput, styles.notesInput]}
-                value={formData.notes}
-                onChangeText={(text) => handleInputChange('notes', text)}
-                placeholder="Additional Notes"
+                style={styles.editInput}
+                value={formData.courseSelection}
+                onChangeText={(text) => handleInputChange('courseSelection', text)}
+                placeholder="Course Selection"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.inputLabel}>Dietary Needs</Text>
+              <TextInput
+                style={[styles.editInput, styles.multilineInput]}
+                value={formData.dietaryNeeds}
+                onChangeText={(text) => handleInputChange('dietaryNeeds', text)}
+                placeholder="Dietary Needs or Restrictions"
                 multiline
-                numberOfLines={3}
+                numberOfLines={2}
                 textAlignVertical="top"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.inputLabel}>Medical Information</Text>
+              <TextInput
+                style={[styles.editInput, styles.multilineInput]}
+                value={formData.medicalInfo}
+                onChangeText={(text) => handleInputChange('medicalInfo', text)}
+                placeholder="Medical Information"
+                multiline
+                numberOfLines={2}
+                textAlignVertical="top"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.sectionTitle}>Emergency Contact</Text>
+              
+              <Text style={styles.inputLabel}>Name</Text>
+              <TextInput
+                style={styles.editInput}
+                value={formData.emergencyContactName}
+                onChangeText={(text) => handleInputChange('emergencyContactName', text)}
+                placeholder="Emergency Contact Name"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.inputLabel}>Phone</Text>
+              <TextInput
+                style={styles.editInput}
+                value={formData.emergencyContactPhone}
+                onChangeText={(text) => handleInputChange('emergencyContactPhone', text)}
+                placeholder="Emergency Contact Phone"
+                keyboardType="phone-pad"
+                returnKeyType="next"
+                blurOnSubmit={false}
+              />
+              
+              <Text style={styles.inputLabel}>Email</Text>
+              <TextInput
+                style={styles.editInput}
+                value={formData.emergencyContactEmail}
+                onChangeText={(text) => handleInputChange('emergencyContactEmail', text)}
+                placeholder="Emergency Contact Email"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                returnKeyType="done"
                 blurOnSubmit={true}
               />
               
@@ -540,30 +628,128 @@ const UserManagementScreen = () => {
         return;
       }
 
-      // Check for valid data structure
+      // DEBUG: Log the first entry to see all available fields
+      console.log('First entry sample:', JSON.stringify(userData[0]));
+
+      // Map fields from Excel to our desired format
       let validUsers = [];
       
       for (const user of userData) {
-        // Check if we can get name and email (either direct or from first/last name)
-        const email = user.email;
-        let name = user.name;
+        // Extract all possible name fields
+        const firstName = user['First Name'] || user.FirstName || user.firstName || '';
+        const lastName = user['Last Name'] || user.LastName || user.lastName || '';
+        const preferredName = user['Preferred Name'] || user.PreferredName || user.preferredName || '';
         
-        // If we don't have a name but have firstName/lastName
-        if (!name && (user.firstName || user.lastName)) {
-          name = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+        // Generate name using preferred name if available, otherwise first + last
+        let name = '';
+        if (preferredName && lastName) {
+          name = `${preferredName} ${lastName}`;
+        } else if (firstName && lastName) {
+          name = `${firstName} ${lastName}`;
+        } else if (preferredName) {
+          name = preferredName;
+        } else if (firstName) {
+          name = firstName;
+        } else if (lastName) {
+          name = lastName;
+        } else if (user.name) {
+          name = user.name;
         }
         
-        if (name && email) {
-          validUsers.push({
-            ...user,
-            name,
-            email
-          });
+        // Extract email - crucial field (try different case variations)
+        const email = user.Email || user.email || user.EMAIL || '';
+        
+        // Skip records without email
+        if (!email) {
+          console.log('Skipping record without email', user);
+          continue;
         }
+        
+        // Extract phone (try different formats)
+        const phone = user.Phone || user.phone || user.PHONE || '';
+        
+        // Build address from various components if present
+        let address = user.address || user.Address || '';
+        if (!address) {
+          const street = user.Street || user.street || '';
+          const city = user.City || user.city || '';
+          const state = user.State || user.state || '';
+          const postal = user.Postal || user['Postal Code'] || user.postalCode || user.zip || user.Zip || '';
+          
+          // Combine address components
+          const addressParts = [street, city, state, postal].filter(part => part);
+          address = addressParts.join(', ');
+        }
+        
+        // Extract room assignment
+        const roomNumber = user.Room || user.RoomNumber || user['Room Number'] || user.roomNumber || '';
+        
+        // Additional useful information
+        const gender = user.Gender || user.gender || '';
+        const birthdate = user.Birthdate || user.birthdate || user.DOB || user.dob || '';
+        
+        // Course selection - try multiple possible fields
+        let courseSelection = '';
+        const possibleCourseFields = [
+          'Course Selection', 'Course', 'Courses', 'First Choice', 
+          'courseSelection', 'firstChoice', 'course'
+        ];
+        
+        for (const field of possibleCourseFields) {
+          if (user[field] && typeof user[field] === 'string' && user[field].trim() !== '') {
+            courseSelection = user[field];
+            break;
+          }
+        }
+        
+        // Dietary needs
+        const dietaryNeeds = user.Dietary || user.dietaryNeeds || user['Dietary Details'] || 
+                            user['Dietary Restrictions'] || user.dietaryRestrictions || '';
+        
+        // Medical information
+        const medicalInfo = user.Medical || user.medicalInfo || user['Medical Details'] || 
+                           user['Medical Information'] || user.medicalInformation || '';
+        
+        // Emergency contact
+        let parentName = '';
+        if (user['Parent/Guardian First'] && user['Parent/Guardian Last']) {
+          parentName = `${user['Parent/Guardian First']} ${user['Parent/Guardian Last']}`;
+        } else if (user['Parent/Guardian']) {
+          parentName = user['Parent/Guardian'];
+        } else if (user.parentName) {
+          parentName = user.parentName;
+        } else if (user.guardianName) {
+          parentName = user.guardianName;
+        }
+        
+        const parentEmail = user['Parent/Guardian Email'] || user.parentEmail || user.guardianEmail || '';
+        const parentPhone = user['Parent/Guardian Phone'] || user.parentPhone || user.guardianPhone || '';
+        
+        // Construct a valid user object with all available data
+        const validUser = {
+          name,
+          email,
+          phone,
+          address,
+          roomNumber,
+          gender,
+          birthdate,
+          courseSelection,
+          dietaryNeeds,
+          medicalInfo,
+          emergencyContact: parentName ? {
+            name: parentName,
+            email: parentEmail,
+            phone: parentPhone,
+            relationship: user['Parent/Guardian Type'] || 'Parent/Guardian'
+          } : null
+        };
+        
+        validUsers.push(validUser);
       }
       
       if (validUsers.length === 0) {
-        Alert.alert('Error', 'No valid user data found in the file. Make sure your file has name and email columns.');
+        Alert.alert('Error', 'No valid user data found in the file. Make sure your file has at least email columns.');
         setIsLoading(false);
         return;
       }
@@ -577,7 +763,33 @@ const UserManagementScreen = () => {
         // Refresh the user list
         await fetchUsers();
         
-        Alert.alert('Success', `Successfully imported ${importedCount} users`);
+        // Show success message with tokens for the first few imported users
+        let tokenMessage = '';
+        if (validUsers.length > 0 && importedCount > 0) {
+          const limit = Math.min(5, importedCount); // Show up to 5 tokens
+          const recentlyAddedUsers = await getDocuments('students');
+          const newUsers = recentlyAddedUsers
+            .filter(u => validUsers.some(v => v.email.toLowerCase() === u.email.toLowerCase()))
+            .slice(0, limit);
+          
+          if (newUsers.length > 0) {
+            tokenMessage = '\n\nLogin tokens for recently added students:\n';
+            newUsers.forEach(user => {
+              if (user.verificationToken) {
+                tokenMessage += `\n${user.name || user.email}: ${user.verificationToken}`;
+              }
+            });
+            
+            if (importedCount > limit) {
+              tokenMessage += `\n\n... and ${importedCount - limit} more students. View student details to see all tokens.`;
+            }
+          }
+        }
+        
+        Alert.alert(
+          'Success', 
+          `Successfully imported ${importedCount} students with login tokens.${tokenMessage}`
+        );
       } catch (importError) {
         console.error('Error during import to Firebase:', importError);
         Alert.alert('Error', `Failed to import users: ${importError.message}`);
@@ -619,29 +831,61 @@ const UserManagementScreen = () => {
           continue;
         }
         
-        // Prepare user data
+        // Generate a unique token for login
+        const token = generateUniqueToken();
+        
+        // Set token expiration 100 years in the future (effectively never expires)
+        const tokenExpires = new Date();
+        tokenExpires.setFullYear(tokenExpires.getFullYear() + 100);
+        
+        // Generate a unique student ID
+        const studentId = generateUniqueStudentId();
+        
+        // Prepare user data with all the fields we extracted
         const userData = {
+          // Basic information
           name: user.name,
           email: user.email,
           phone: user.phone || '',
           role: 'student',
           status: 'active',
-          // Add any other fields from the CSV
+          
+          // Additional information
           address: user.address || '',
-          notes: user.notes || '',
           roomNumber: user.roomNumber || '',
+          gender: user.gender || '',
+          birthdate: user.birthdate || '',
+          
+          // Academic information
+          courseSelection: user.courseSelection || '',
+          
+          // Health information
+          dietaryNeeds: user.dietaryNeeds || '',
+          medicalInfo: user.medicalInfo || '',
+          
+          // Emergency contact information
+          emergencyContact: user.emergencyContact || {},
+          
+          // Add verification token
+          verificationToken: token,
+          tokenCreatedAt: new Date().toISOString(),
+          tokenExpires: tokenExpires,
+          isVerified: true, // Set to true so they can log in immediately
+          studentId: studentId,
+          
           // Add timestamps
           importedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
         };
         
         try {
-          // Add the user to Firestore
-          console.log(`Adding user: ${user.name}`);
-          await addDocument('students', userData);
+          // Add the user to Firestore with the specified document ID
+          console.log(`Adding user: ${user.name || user.email} with token: ${token}`);
+          await addDocument('students', userData, studentId);
           importedCount++;
-          console.log(`Successfully added user: ${user.name}`);
+          console.log(`Successfully added user: ${user.name || user.email}`);
         } catch (addError) {
-          console.error(`Error adding individual user ${user.name}:`, addError);
+          console.error(`Error adding individual user ${user.name || user.email}:`, addError);
           // Continue with next user instead of failing the whole batch
         }
       }
@@ -766,10 +1010,16 @@ const UserManagementScreen = () => {
   const renderUserItem = ({ item }) => (
     <View style={styles.userCard}>
       <View style={styles.userDetails}>
-        <Text style={styles.userName}>{item.name}</Text>
+        <Text style={styles.userName}>{item.name || item.email}</Text>
         <Text style={styles.userEmail}>{item.email}</Text>
-        {item.phone && <Text style={styles.userPhone}>{item.phone}</Text>}
-        {item.roomNumber && <Text style={styles.userPhone}>Room: {item.roomNumber}</Text>}
+        {item.phone && <Text style={styles.userInfo}>{item.phone}</Text>}
+        {item.roomNumber && <Text style={styles.userInfo}>Room: {item.roomNumber}</Text>}
+        {item.courseSelection && <Text style={styles.userInfo}>Course: {item.courseSelection}</Text>}
+        {item.verificationToken && (
+          <View style={styles.tokenContainer}>
+            <Text style={styles.userToken}>Token: {item.verificationToken}</Text>
+          </View>
+        )}
       </View>
       <TouchableOpacity 
         style={styles.userAction}
@@ -811,6 +1061,14 @@ const UserManagementScreen = () => {
             </TouchableOpacity>
 
             <TouchableOpacity 
+              style={styles.modalOption}
+              onPress={handleGenerateToken}
+            >
+              <Ionicons name="key-outline" size={22} color="#333" />
+              <Text style={styles.modalOptionText}>Generate Login Token</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
               style={[styles.modalOption, styles.deleteOption]}
               onPress={handleDeleteUser}
             >
@@ -823,11 +1081,69 @@ const UserManagementScreen = () => {
     </Modal>
   );
 
+  const handleGenerateToken = async () => {
+    setUserActionModalVisible(false);
+    
+    try {
+      setIsLoading(true);
+      
+      // Generate a new token
+      const token = generateUniqueToken();
+      
+      // Set token expiration 100 years in the future (effectively never expires)
+      const tokenExpires = new Date();
+      tokenExpires.setFullYear(tokenExpires.getFullYear() + 100);
+      
+      // Update the document in Firestore
+      const result = await updateDocument('students', selectedUser.id, {
+        verificationToken: token,
+        tokenCreatedAt: new Date().toISOString(),
+        tokenExpires: tokenExpires,
+        isVerified: true,
+        status: 'active',
+        updatedAt: new Date().toISOString()
+      });
+      
+      if (result) {
+        // Update the user in local state
+        setUsers(prevUsers => prevUsers.map(user => 
+          user.id === selectedUser.id ? { 
+            ...user, 
+            verificationToken: token,
+            tokenCreatedAt: new Date().toISOString(),
+            tokenExpires: tokenExpires,
+            isVerified: true,
+            status: 'active' 
+          } : user
+        ));
+        
+        // Show token to admin
+        setTimeout(() => {
+          Alert.alert(
+            'Login Token Generated', 
+            `Token for ${selectedUser.name}: ${token}\n\nThis token can be used to log in as a student.`
+          );
+        }, 300);
+      } else {
+        setTimeout(() => {
+          Alert.alert('Error', 'Failed to generate token');
+        }, 300);
+      }
+    } catch (error) {
+      console.error('Error generating token:', error);
+      setTimeout(() => {
+        Alert.alert('Error', 'Failed to generate token: ' + error.message);
+      }, 300);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
       <View style={styles.header}>
-        <Text style={styles.screenTitle}>User Management</Text>
+        <Text style={styles.headerTitle}>Student Management</Text>
       </View>
 
       <View style={styles.searchContainer}>
@@ -911,7 +1227,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e1e1e1',
   },
-  screenTitle: {
+  headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
@@ -996,9 +1312,15 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 4,
   },
-  userPhone: {
+  userInfo: {
     fontSize: 14,
     color: '#666',
+  },
+  userToken: {
+    fontSize: 14,
+    color: '#007BFF',
+    marginTop: 4,
+    fontWeight: '500',
   },
   userAction: {
     padding: 8,
@@ -1124,6 +1446,17 @@ const styles = StyleSheet.create({
     height: 100,
     textAlignVertical: 'top',
   },
+  multilineInput: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 20,
+    marginBottom: 10,
+  },
   saveButton: {
     backgroundColor: '#4285F4',
     borderRadius: 5,
@@ -1157,6 +1490,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginTop: 10,
     fontSize: 16,
+  },
+  tokenContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
   },
 });
 

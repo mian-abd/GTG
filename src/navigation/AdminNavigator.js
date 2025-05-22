@@ -110,7 +110,7 @@ const AdminNavigator = () => {
       <Tab.Screen 
         name="UsersTab" 
         component={UsersStack} 
-        options={{ title: 'Users' }}
+        options={{ title: 'Students' }}
       />
       <Tab.Screen 
         name="SettingsTab" 

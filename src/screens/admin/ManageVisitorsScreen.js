@@ -184,7 +184,7 @@ const ManageVisitorsScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.screenTitle}>Manage Visitors</Text>
+        <Text style={styles.screenTitle}>Manage Students</Text>
       </View>
 
       <View style={styles.searchContainer}>
