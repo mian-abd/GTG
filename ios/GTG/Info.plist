@@ -52,6 +52,8 @@
     </dict>
     <key>NSDocumentPickerUsageDescription</key>
     <string>Allow GTG to access documents for importing user data</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to save photos</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Allow GTG to access your photo library to select documents and photos</string>
     <key>UILaunchStoryboardName</key>

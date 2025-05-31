@@ -13,6 +13,7 @@ import {
   SafeAreaView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../context/ThemeContext';
 
 // Import Firebase functions
 import { 
@@ -23,6 +24,7 @@ import {
 } from '../../utils/firebaseConfig';
 
 const StudentScheduleScreen = () => {
+  const { theme } = useTheme();
   const [students, setStudents] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [classes, setClasses] = useState([]);

@@ -18,6 +18,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
@@ -29,6 +30,7 @@ import { generateUniqueToken, generateUniqueStudentId } from '../../utils/tokenS
 
 // Create a separate component for the Edit User Form to isolate state management
 const EditUserForm = ({ visible, user, onClose, onSave, isLoading }) => {
+  const { theme } = useTheme();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -115,14 +117,14 @@ const EditUserForm = ({ visible, user, onClose, onSave, isLoading }) => {
           keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
           enabled={Platform.OS === 'ios'}
         >
-          <View style={styles.editModalContainer}>
-            <View style={styles.editModalHeader}>
-              <Text style={styles.editModalTitle}>Edit Student</Text>
+          <View style={[styles.editModalContainer, { backgroundColor: theme.colors.card }]}>
+            <View style={[styles.editModalHeader, { borderBottomColor: theme.colors.border }]}>
+              <Text style={[styles.editModalTitle, { color: theme.colors.text.primary }]}>Edit Student</Text>
               <TouchableOpacity 
                 onPress={onClose}
                 hitSlop={{top: 20, right: 20, bottom: 20, left: 20}}
               >
-                <Ionicons name="close" size={24} color="#666" />
+                <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
               </TouchableOpacity>
             </View>
             
@@ -131,124 +133,179 @@ const EditUserForm = ({ visible, user, onClose, onSave, isLoading }) => {
               keyboardShouldPersistTaps="always"
               showsVerticalScrollIndicator={false}
             >
-              <Text style={styles.inputLabel}>Name</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Name</Text>
               <TextInput
-                style={styles.editInput}
+                style={[styles.editInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.name}
                 onChangeText={(text) => handleInputChange('name', text)}
                 placeholder="Full Name"
+                placeholderTextColor={theme.colors.text.tertiary}
                 returnKeyType="next"
                 blurOnSubmit={false}
               />
               
-              <Text style={styles.inputLabel}>Email</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Email</Text>
               <TextInput
-                style={styles.editInput}
+                style={[styles.editInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.email}
                 onChangeText={(text) => handleInputChange('email', text)}
                 placeholder="Email Address"
+                placeholderTextColor={theme.colors.text.tertiary}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 returnKeyType="next"
                 blurOnSubmit={false}
               />
               
-              <Text style={styles.inputLabel}>Phone</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Phone</Text>
               <TextInput
-                style={styles.editInput}
+                style={[styles.editInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.phone}
                 onChangeText={(text) => handleInputChange('phone', text)}
                 placeholder="Phone Number"
+                placeholderTextColor={theme.colors.text.tertiary}
                 keyboardType="phone-pad"
                 returnKeyType="next"
                 blurOnSubmit={false}
               />
               
-              <Text style={styles.inputLabel}>Room Number</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Room Number</Text>
               <TextInput
-                style={styles.editInput}
+                style={[styles.editInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.roomNumber}
                 onChangeText={(text) => handleInputChange('roomNumber', text)}
                 placeholder="Room Number"
+                placeholderTextColor={theme.colors.text.tertiary}
                 returnKeyType="next"
                 blurOnSubmit={false}
               />
               
-              <Text style={styles.inputLabel}>Address</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Address</Text>
               <TextInput
-                style={styles.editInput}
+                style={[styles.editInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.address}
                 onChangeText={(text) => handleInputChange('address', text)}
                 placeholder="Address"
+                placeholderTextColor={theme.colors.text.tertiary}
                 returnKeyType="next"
                 blurOnSubmit={false}
               />
               
-              <Text style={styles.inputLabel}>Course Selection</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Course Selection</Text>
               <TextInput
-                style={styles.editInput}
+                style={[styles.editInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.courseSelection}
                 onChangeText={(text) => handleInputChange('courseSelection', text)}
                 placeholder="Course Selection"
+                placeholderTextColor={theme.colors.text.tertiary}
                 returnKeyType="next"
                 blurOnSubmit={false}
               />
               
-              <Text style={styles.inputLabel}>Dietary Needs</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Dietary Needs</Text>
               <TextInput
-                style={[styles.editInput, styles.multilineInput]}
+                style={[styles.editInput, styles.multilineInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.dietaryNeeds}
                 onChangeText={(text) => handleInputChange('dietaryNeeds', text)}
-                placeholder="Dietary Needs or Restrictions"
+                placeholder="Dietary needs and allergies"
+                placeholderTextColor={theme.colors.text.tertiary}
                 multiline
-                numberOfLines={2}
+                numberOfLines={3}
                 textAlignVertical="top"
                 returnKeyType="next"
                 blurOnSubmit={false}
               />
               
-              <Text style={styles.inputLabel}>Medical Information</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Medical Information</Text>
               <TextInput
-                style={[styles.editInput, styles.multilineInput]}
+                style={[styles.editInput, styles.multilineInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.medicalInfo}
                 onChangeText={(text) => handleInputChange('medicalInfo', text)}
-                placeholder="Medical Information"
+                placeholder="Medical information and notes"
+                placeholderTextColor={theme.colors.text.tertiary}
                 multiline
-                numberOfLines={2}
+                numberOfLines={3}
                 textAlignVertical="top"
                 returnKeyType="next"
                 blurOnSubmit={false}
               />
               
-              <Text style={styles.sectionTitle}>Emergency Contact</Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Emergency Contact</Text>
               
-              <Text style={styles.inputLabel}>Name</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Contact Name</Text>
               <TextInput
-                style={styles.editInput}
+                style={[styles.editInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.emergencyContactName}
                 onChangeText={(text) => handleInputChange('emergencyContactName', text)}
-                placeholder="Emergency Contact Name"
+                placeholder="Emergency contact name"
+                placeholderTextColor={theme.colors.text.tertiary}
                 returnKeyType="next"
                 blurOnSubmit={false}
               />
               
-              <Text style={styles.inputLabel}>Phone</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Contact Phone</Text>
               <TextInput
-                style={styles.editInput}
+                style={[styles.editInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.emergencyContactPhone}
                 onChangeText={(text) => handleInputChange('emergencyContactPhone', text)}
-                placeholder="Emergency Contact Phone"
+                placeholder="Emergency contact phone"
+                placeholderTextColor={theme.colors.text.tertiary}
                 keyboardType="phone-pad"
                 returnKeyType="next"
                 blurOnSubmit={false}
               />
               
-              <Text style={styles.inputLabel}>Email</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Contact Email</Text>
               <TextInput
-                style={styles.editInput}
+                style={[styles.editInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.emergencyContactEmail}
                 onChangeText={(text) => handleInputChange('emergencyContactEmail', text)}
-                placeholder="Emergency Contact Email"
+                placeholder="Emergency contact email"
+                placeholderTextColor={theme.colors.text.tertiary}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 returnKeyType="done"
@@ -256,7 +313,7 @@ const EditUserForm = ({ visible, user, onClose, onSave, isLoading }) => {
               />
               
               <TouchableOpacity 
-                style={styles.saveButton}
+                style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}
                 onPress={handleSubmit}
                 disabled={isLoading}
                 activeOpacity={0.7}
@@ -276,6 +333,7 @@ const EditUserForm = ({ visible, user, onClose, onSave, isLoading }) => {
 };
 
 const UserManagementScreen = () => {
+  const { theme } = useTheme();
   const navigation = useNavigation();
   const { handleLogout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -910,21 +968,21 @@ const UserManagementScreen = () => {
         activeOpacity={1}
         onPress={() => setAddModalVisible(false)}
       >
-        <View style={styles.modalContainer}>
+        <View style={[styles.modalContainer, { backgroundColor: theme.colors.card }]}>
           <View style={styles.modalContent}>
             <TouchableOpacity 
-              style={styles.modalOption}
+              style={[styles.modalOption, { borderBottomColor: theme.colors.border }]}
               onPress={() => {
                 setAddModalVisible(false);
                 Alert.alert('Add User', 'Form to add a new user would open here');
               }}
             >
-              <Ionicons name="person-add-outline" size={22} color="#333" />
-              <Text style={styles.modalOptionText}>Add User Manually</Text>
+              <Ionicons name="person-add-outline" size={22} color={theme.colors.text.primary} />
+              <Text style={[styles.modalOptionText, { color: theme.colors.text.primary }]}>Add User Manually</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.modalOption}
+              style={[styles.modalOption, { borderBottomColor: theme.colors.border }]}
               onPress={() => {
                 setAddModalVisible(false);
                 // Add a longer delay before opening the picker to ensure the modal is completely closed
@@ -936,8 +994,8 @@ const UserManagementScreen = () => {
                 }, 500);
               }}
             >
-              <Ionicons name="document-outline" size={22} color="#333" />
-              <Text style={styles.modalOptionText}>Select File</Text>
+              <Ionicons name="document-outline" size={22} color={theme.colors.text.primary} />
+              <Text style={[styles.modalOptionText, { color: theme.colors.text.primary }]}>Select File</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -947,8 +1005,8 @@ const UserManagementScreen = () => {
                 handleImportSampleData();
               }}
             >
-              <Ionicons name="people-outline" size={22} color="#333" />
-              <Text style={styles.modalOptionText}>Import Sample Data</Text>
+              <Ionicons name="people-outline" size={22} color={theme.colors.text.primary} />
+              <Text style={[styles.modalOptionText, { color: theme.colors.text.primary }]}>Import Sample Data</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1008,16 +1066,16 @@ const UserManagementScreen = () => {
   };
 
   const renderUserItem = ({ item }) => (
-    <View style={styles.userCard}>
+    <View style={[styles.userCard, { backgroundColor: theme.colors.card }]}>
       <View style={styles.userDetails}>
-        <Text style={styles.userName}>{item.name || item.email}</Text>
-        <Text style={styles.userEmail}>{item.email}</Text>
-        {item.phone && <Text style={styles.userInfo}>{item.phone}</Text>}
-        {item.roomNumber && <Text style={styles.userInfo}>Room: {item.roomNumber}</Text>}
-        {item.courseSelection && <Text style={styles.userInfo}>Course: {item.courseSelection}</Text>}
+        <Text style={[styles.userName, { color: theme.colors.text.primary }]}>{item.name || item.email}</Text>
+        <Text style={[styles.userEmail, { color: theme.colors.text.secondary }]}>{item.email}</Text>
+        {item.phone && <Text style={[styles.userInfo, { color: theme.colors.text.secondary }]}>{item.phone}</Text>}
+        {item.roomNumber && <Text style={[styles.userInfo, { color: theme.colors.text.secondary }]}>Room: {item.roomNumber}</Text>}
+        {item.courseSelection && <Text style={[styles.userInfo, { color: theme.colors.text.secondary }]}>Course: {item.courseSelection}</Text>}
         {item.verificationToken && (
           <View style={styles.tokenContainer}>
-            <Text style={styles.userToken}>Token: {item.verificationToken}</Text>
+            <Text style={[styles.userToken, { color: theme.colors.primary }]}>Token: {item.verificationToken}</Text>
           </View>
         )}
       </View>
@@ -1025,7 +1083,7 @@ const UserManagementScreen = () => {
         style={styles.userAction}
         onPress={() => handleUserAction(item)}
       >
-        <Ionicons name="ellipsis-vertical" size={20} color="#666" />
+        <Ionicons name="ellipsis-vertical" size={20} color={theme.colors.text.secondary} />
       </TouchableOpacity>
     </View>
   );
@@ -1043,29 +1101,29 @@ const UserManagementScreen = () => {
         activeOpacity={1}
         onPress={() => setUserActionModalVisible(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>User Actions</Text>
+        <View style={[styles.modalContainer, { backgroundColor: theme.colors.card }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text.primary }]}>User Actions</Text>
             <TouchableOpacity onPress={() => setUserActionModalVisible(false)}>
-              <Ionicons name="close" size={24} color="#666" />
+              <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
             </TouchableOpacity>
           </View>
           
           <View style={styles.modalContent}>
             <TouchableOpacity 
-              style={styles.modalOption}
+              style={[styles.modalOption, { borderBottomColor: theme.colors.border }]}
               onPress={handleEditUser}
             >
-              <Ionicons name="create-outline" size={22} color="#333" />
-              <Text style={styles.modalOptionText}>Edit User</Text>
+              <Ionicons name="create-outline" size={22} color={theme.colors.text.primary} />
+              <Text style={[styles.modalOptionText, { color: theme.colors.text.primary }]}>Edit User</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={styles.modalOption}
+              style={[styles.modalOption, { borderBottomColor: theme.colors.border }]}
               onPress={handleGenerateToken}
             >
-              <Ionicons name="key-outline" size={22} color="#333" />
-              <Text style={styles.modalOptionText}>Generate Login Token</Text>
+              <Ionicons name="key-outline" size={22} color={theme.colors.text.primary} />
+              <Text style={[styles.modalOptionText, { color: theme.colors.text.primary }]}>Generate Login Token</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -1140,31 +1198,41 @@ const UserManagementScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Student Management</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      <StatusBar barStyle={theme.colors.statusBar} backgroundColor={theme.colors.background.primary} />
+      <View style={[styles.header, { 
+        backgroundColor: theme.colors.background.secondary,
+        borderBottomColor: theme.colors.border
+      }]}>
+        <Text style={[styles.headerTitle, { color: theme.colors.text.primary }]}>Student Management</Text>
       </View>
 
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="gray" style={styles.searchIcon} />
+      <View style={[styles.searchContainer, { 
+        backgroundColor: theme.colors.card,
+        borderColor: theme.colors.border
+      }]}>
+        <Ionicons name="search" size={20} color={theme.colors.text.tertiary} style={styles.searchIcon} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { 
+            color: theme.colors.text.primary,
+            placeholderTextColor: theme.colors.text.tertiary
+          }]}
           placeholder="Search users..."
+          placeholderTextColor={theme.colors.text.tertiary}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery ? (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color="#666" />
+            <Ionicons name="close-circle" size={20} color={theme.colors.text.secondary} />
           </TouchableOpacity>
         ) : null}
       </View>
 
       {isLoading && !users.length ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#F9A826" />
-          <Text style={styles.loadingText}>Loading...</Text>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={[styles.loadingText, { color: theme.colors.text.primary }]}>Loading...</Text>
         </View>
       ) : (
       <FlatList
@@ -1176,9 +1244,9 @@ const UserManagementScreen = () => {
           renderItem={renderUserItem}
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
-            <Ionicons name="people-outline" size={64} color="#ccc" />
-            <Text style={styles.emptyTitle}>No users found</Text>
-            <Text style={styles.emptyText}>
+            <Ionicons name="people-outline" size={64} color={theme.colors.text.tertiary} />
+            <Text style={[styles.emptyTitle, { color: theme.colors.text.primary }]}>No users found</Text>
+            <Text style={[styles.emptyText, { color: theme.colors.text.secondary }]}>
               Users you add or import will appear here.
             </Text>
           </View>
@@ -1188,7 +1256,7 @@ const UserManagementScreen = () => {
       )}
 
       <TouchableOpacity 
-        style={styles.addButton}
+        style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
         onPress={handleAddUser}
         disabled={isLoading}
       >

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Modal, S
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useTheme } from '../../context/ThemeContext';
 import { format, parseISO, parse } from 'date-fns';
 
 // Import Firebase functions
@@ -26,6 +27,7 @@ import {
 import { ACTIVITIES, CLASSES } from '../../utils/demoData';
 
 const ProgramScheduleScreen = () => {
+  const { theme } = useTheme();
   const navigation = useNavigation();
   const [currentDay, setCurrentDay] = useState(1); // Day 1 or Day 2
   const [scheduleItems, setScheduleItems] = useState([]);
@@ -328,76 +330,76 @@ const ProgramScheduleScreen = () => {
       onRequestClose={() => setAddFormVisible(false)}
     >
       <View style={styles.modalContainer}>
-        <View style={[styles.modalContent, { backgroundColor: '#2A2A2A' }]}>
+        <View style={[styles.modalContent, { backgroundColor: theme.colors.background.primary }]}>
           <ScrollView>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: '#fff' }]}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text.primary }]}>
                 {editMode ? 'Edit Schedule Item' : 'Add New Schedule Item'} (Day {currentDay})
               </Text>
               <TouchableOpacity onPress={() => setAddFormVisible(false)}>
-                <Ionicons name="close" size={24} color="#fff" />
+                <Ionicons name="close" size={24} color={theme.colors.text.primary} />
               </TouchableOpacity>
             </View>
             
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: '#fff' }]}>Title *</Text>
+              <Text style={[styles.label, { color: theme.colors.text.primary }]}>Title *</Text>
               <TextInput
-                style={[styles.input, { backgroundColor: '#3A3A3A', color: '#fff', borderColor: '#555' }]}
+                style={[styles.input, { backgroundColor: theme.colors.background.secondary, color: theme.colors.text.primary, borderColor: theme.colors.border }]}
                 value={newActivity.title}
                 onChangeText={(text) => setNewActivity(prev => ({ ...prev, title: text }))}
                 placeholder="Enter schedule item title"
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.colors.placeholder}
               />
             </View>
             
             <View style={styles.formRow}>
               <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-                <Text style={[styles.label, { color: '#fff' }]}>Start Time *</Text>
+                <Text style={[styles.label, { color: theme.colors.text.primary }]}>Start Time *</Text>
                 <TextInput
-                  style={[styles.input, { backgroundColor: '#3A3A3A', color: '#fff', borderColor: '#555' }]}
+                  style={[styles.input, { backgroundColor: theme.colors.background.secondary, color: theme.colors.text.primary, borderColor: theme.colors.border }]}
                   value={newActivity.startTime}
                   onChangeText={(text) => setNewActivity(prev => ({ ...prev, startTime: text }))}
                   placeholder="Example: 09:00"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={theme.colors.placeholder}
                 />
               </View>
               
               <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={[styles.label, { color: '#fff' }]}>End Time *</Text>
+                <Text style={[styles.label, { color: theme.colors.text.primary }]}>End Time *</Text>
                 <TextInput
-                  style={[styles.input, { backgroundColor: '#3A3A3A', color: '#fff', borderColor: '#555' }]}
+                  style={[styles.input, { backgroundColor: theme.colors.background.secondary, color: theme.colors.text.primary, borderColor: theme.colors.border }]}
                   value={newActivity.endTime}
                   onChangeText={(text) => setNewActivity(prev => ({ ...prev, endTime: text }))}
                   placeholder="Example: 10:30"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={theme.colors.placeholder}
                 />
               </View>
             </View>
             
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: '#fff' }]}>Location (Optional)</Text>
+              <Text style={[styles.label, { color: theme.colors.text.primary }]}>Location (Optional)</Text>
               <TextInput
-                style={[styles.input, { backgroundColor: '#3A3A3A', color: '#fff', borderColor: '#555' }]}
+                style={[styles.input, { backgroundColor: theme.colors.background.secondary, color: theme.colors.text.primary, borderColor: theme.colors.border }]}
                 value={newActivity.location}
                 onChangeText={(text) => setNewActivity(prev => ({ ...prev, location: text }))}
                 placeholder="Enter location (optional)"
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.colors.placeholder}
               />
             </View>
             
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: '#fff' }]}>Type</Text>
+              <Text style={[styles.label, { color: theme.colors.text.primary }]}>Type</Text>
               <View style={styles.typeSelector}>
                 <TouchableOpacity
                   style={[
                     styles.typeOption,
                     newActivity.type === 'activity' && styles.selectedType,
-                    { backgroundColor: '#3A3A3A', borderColor: '#555' }
+                    { backgroundColor: theme.colors.background.secondary, borderColor: theme.colors.border }
                   ]}
                   onPress={() => setNewActivity(prev => ({ ...prev, type: 'activity' }))}
                 >
                   <Text style={[
-                    newActivity.type === 'activity' ? styles.selectedTypeText : { color: '#ccc' }
+                    newActivity.type === 'activity' ? styles.selectedTypeText : { color: theme.colors.placeholder }
                   ]}>
                     Activity
                   </Text>
@@ -407,12 +409,12 @@ const ProgramScheduleScreen = () => {
                   style={[
                     styles.typeOption,
                     newActivity.type === 'session' && styles.selectedType,
-                    { backgroundColor: '#3A3A3A', borderColor: '#555' }
+                    { backgroundColor: theme.colors.background.secondary, borderColor: theme.colors.border }
                   ]}
                   onPress={() => setNewActivity(prev => ({ ...prev, type: 'session' }))}
                 >
                   <Text style={[
-                    newActivity.type === 'session' ? styles.selectedTypeText : { color: '#ccc' }
+                    newActivity.type === 'session' ? styles.selectedTypeText : { color: theme.colors.placeholder }
                   ]}>
                     Session
                   </Text>
@@ -422,12 +424,12 @@ const ProgramScheduleScreen = () => {
                   style={[
                     styles.typeOption,
                     newActivity.type === 'meal' && styles.selectedType,
-                    { backgroundColor: '#3A3A3A', borderColor: '#555' }
+                    { backgroundColor: theme.colors.background.secondary, borderColor: theme.colors.border }
                   ]}
                   onPress={() => setNewActivity(prev => ({ ...prev, type: 'meal' }))}
                 >
                   <Text style={[
-                    newActivity.type === 'meal' ? styles.selectedTypeText : { color: '#ccc' }
+                    newActivity.type === 'meal' ? styles.selectedTypeText : { color: theme.colors.placeholder }
                   ]}>
                     Meal
                   </Text>
@@ -436,31 +438,31 @@ const ProgramScheduleScreen = () => {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: '#fff' }]}>Description (Optional)</Text>
+              <Text style={[styles.label, { color: theme.colors.text.primary }]}>Description (Optional)</Text>
               <TextInput
                 style={[
                   styles.input, 
                   styles.textArea, 
-                  { backgroundColor: '#3A3A3A', color: '#fff', borderColor: '#555' }
+                  { backgroundColor: theme.colors.background.secondary, color: theme.colors.text.primary, borderColor: theme.colors.border }
                 ]}
                 value={newActivity.description}
                 onChangeText={(text) => setNewActivity(prev => ({ ...prev, description: text }))}
                 placeholder="Enter description (optional)"
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.colors.placeholder}
                 multiline
                 numberOfLines={4}
               />
             </View>
 
             <TouchableOpacity 
-              style={[styles.submitButton, { backgroundColor: '#F9A826' }]}
+              style={[styles.submitButton, { backgroundColor: theme.colors.primary }]}
               onPress={handleSubmitForm}
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="white" />
+                <ActivityIndicator color={theme.colors.text.primary} />
               ) : (
-                <Text style={styles.submitButtonText}>
+                <Text style={[styles.submitButtonText, { color: theme.colors.surface }]}>
                   {editMode ? 'Update Schedule Item' : 'Add Schedule Item'}
                 </Text>
               )}
@@ -483,21 +485,21 @@ const ProgramScheduleScreen = () => {
           onRequestClose={onClose}
         >
           <View style={styles.modalContainer}>
-            <View style={[styles.modalContent, { backgroundColor: '#2A2A2A' }]}>
+            <View style={[styles.modalContent, { backgroundColor: theme.colors.background.primary }]}>
               <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: '#fff' }]}>Details</Text>
+                <Text style={[styles.modalTitle, { color: theme.colors.text.primary }]}>Details</Text>
                 <TouchableOpacity onPress={onClose}>
-                  <Ionicons name="close" size={24} color="#fff" />
+                  <Ionicons name="close" size={24} color={theme.colors.text.primary} />
                 </TouchableOpacity>
               </View>
               <View style={styles.loadingContainer}>
-                <Text style={[styles.loadingText, { color: '#ccc' }]}>No item to display</Text>
+                <Text style={[styles.loadingText, { color: theme.colors.placeholder }]}>No item to display</Text>
               </View>
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: '#555', alignSelf: 'center', marginTop: 20 }]}
+                style={[styles.actionButton, { backgroundColor: theme.colors.border, alignSelf: 'center', marginTop: 20 }]}
                 onPress={onClose}
               >
-                <Text style={styles.buttonText}>Close</Text>
+                <Text style={[styles.buttonText, { color: theme.colors.surface }]}>Close</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -517,52 +519,52 @@ const ProgramScheduleScreen = () => {
         }}
       >
         <View style={styles.modalContainer}>
-          <View style={[styles.modalContent, { backgroundColor: '#2A2A2A' }]}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.background.primary }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: '#fff' }]}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text.primary }]}>
                 {item?.type === 'session' ? 'Session' : item?.type === 'meal' ? 'Meal' : 'Activity'} Details
               </Text>
               <TouchableOpacity onPress={onClose} disabled={loading}>
-                <Ionicons name="close" size={24} color="#fff" />
+                <Ionicons name="close" size={24} color={theme.colors.text.primary} />
               </TouchableOpacity>
             </View>
             
             {loading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#F9A826" />
-                <Text style={[styles.loadingText, { color: '#ccc' }]}>Processing...</Text>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text style={[styles.loadingText, { color: theme.colors.placeholder }]}>Processing...</Text>
               </View>
             ) : (
               <>
                 <View style={styles.detailSection}>
-                  <Text style={[styles.sectionTitle, { color: '#ccc' }]}>Title</Text>
-                  <Text style={[styles.detailItem, { color: '#fff' }]}>{item?.title || 'N/A'}</Text>
+                  <Text style={[styles.sectionTitle, { color: theme.colors.placeholder }]}>Title</Text>
+                  <Text style={[styles.detailItem, { color: theme.colors.text.primary }]}>{item?.title || 'N/A'}</Text>
                 </View>
 
                 <View style={styles.detailSection}>
-                  <Text style={[styles.sectionTitle, { color: '#ccc' }]}>Time</Text>
-                  <Text style={[styles.detailItem, { color: '#fff' }]}>
+                  <Text style={[styles.sectionTitle, { color: theme.colors.placeholder }]}>Time</Text>
+                  <Text style={[styles.detailItem, { color: theme.colors.text.primary }]}>
                     {(item?.startTime && item?.endTime) ? `${item.startTime} - ${item.endTime}` : 'N/A'}
                   </Text>
                 </View>
 
                 {item?.location && (
                   <View style={styles.detailSection}>
-                    <Text style={[styles.sectionTitle, { color: '#ccc' }]}>Location</Text>
-                    <Text style={[styles.detailItem, { color: '#fff' }]}>{item.location}</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.colors.placeholder }]}>Location</Text>
+                    <Text style={[styles.detailItem, { color: theme.colors.text.primary }]}>{item.location}</Text>
                   </View>
                 )}
 
                 {item?.description && (
                   <View style={styles.detailSection}>
-                    <Text style={[styles.sectionTitle, { color: '#ccc' }]}>Description</Text>
-                    <Text style={[styles.detailItem, { color: '#fff' }]}>{item.description}</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.colors.placeholder }]}>Description</Text>
+                    <Text style={[styles.detailItem, { color: theme.colors.text.primary }]}>{item.description}</Text>
                   </View>
                 )}
                 
                 <View style={styles.detailSection}>
-                  <Text style={[styles.sectionTitle, { color: '#ccc' }]}>Day</Text>
-                  <Text style={[styles.detailItem, { color: '#fff' }]}>
+                  <Text style={[styles.sectionTitle, { color: theme.colors.placeholder }]}>Day</Text>
+                  <Text style={[styles.detailItem, { color: theme.colors.text.primary }]}>
                     Day {item?.day || '?'}
                   </Text>
                 </View>
@@ -576,8 +578,8 @@ const ProgramScheduleScreen = () => {
                   onPress={() => onEdit(item)}
                   disabled={loading}
                 >
-                  <Ionicons name="pencil" size={20} color="white" />
-                  <Text style={styles.buttonText}>Edit</Text>
+                  <Ionicons name="pencil" size={20} color={theme.colors.text.primary} />
+                  <Text style={[styles.buttonText, { color: theme.colors.surface }]}>Edit</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
@@ -585,8 +587,8 @@ const ProgramScheduleScreen = () => {
                   onPress={() => onDelete(item)}
                   disabled={loading || !item?.isEditable}
                 >
-                  <Ionicons name="trash" size={20} color="white" />
-                  <Text style={styles.buttonText}>Delete</Text>
+                  <Ionicons name="trash" size={20} color={theme.colors.text.primary} />
+                  <Text style={[styles.buttonText, { color: theme.colors.surface }]}>Delete</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -622,20 +624,20 @@ const ProgramScheduleScreen = () => {
     return (
       <View style={styles.itemCardContainer}>
         <TouchableOpacity 
-          style={[styles.itemCard, { backgroundColor: '#2A2A2A' }]}
+          style={[styles.itemCard, { backgroundColor: theme.colors.background.secondary }]}
           onPress={() => handleSelectItem(item)}
         >
           <View style={[styles.itemTypeIndicator, { backgroundColor: itemTypeColor }]} />
           <View style={styles.itemInfo}>
-            <Text style={[styles.itemName, { color: '#fff' }]}>{item.title}</Text>
-            <Text style={[styles.itemTime, { color: '#ccc' }]}>
+            <Text style={[styles.itemName, { color: theme.colors.text.primary }]}>{item.title}</Text>
+            <Text style={[styles.itemTime, { color: theme.colors.placeholder }]}>
               {item.startTime && item.endTime ? `${item.startTime} - ${item.endTime}` : 'Time not specified'}
             </Text>
             {item.location && (
-              <Text style={[styles.itemLocation, { color: '#999' }]}>{item.location}</Text>
+              <Text style={[styles.itemLocation, { color: theme.colors.placeholder }]}>{item.location}</Text>
             )}
           </View>
-          <View style={[styles.itemBadge, { backgroundColor: '#3A3A3A' }]}>
+          <View style={[styles.itemBadge, { backgroundColor: theme.colors.border }]}>
             <Text style={[styles.itemBadgeText, { color: itemTypeColor }]}>{typeLabel}</Text>
           </View>
         </TouchableOpacity>
@@ -645,7 +647,7 @@ const ProgramScheduleScreen = () => {
             style={[styles.quickActionButton, { backgroundColor: '#4a6ea9' }]}
             onPress={() => handleEditItem(item)}
           >
-            <Ionicons name="pencil" size={18} color="#fff" />
+            <Ionicons name="pencil" size={18} color={theme.colors.text.primary} />
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -653,7 +655,7 @@ const ProgramScheduleScreen = () => {
             onPress={() => handleDeleteItem(item)}
             disabled={!item.isEditable}
           >
-            <Ionicons name="trash" size={18} color="#fff" />
+            <Ionicons name="trash" size={18} color={theme.colors.text.primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -663,11 +665,11 @@ const ProgramScheduleScreen = () => {
   // Render empty state when no items are available
   const renderEmptyState = () => (
     <View style={styles.emptyStateContainer}>
-      <Ionicons name="calendar-outline" size={64} color="#666" />
-      <Text style={styles.emptyStateTitle}>
+      <Ionicons name="calendar-outline" size={64} color={theme.colors.placeholder} />
+      <Text style={[styles.emptyStateTitle, { color: theme.colors.text.primary }]}>
         No Schedule Items Found
       </Text>
-      <Text style={styles.emptyStateDescription}>
+      <Text style={[styles.emptyStateDescription, { color: theme.colors.placeholder }]}>
         There are no schedule items available for Day {currentDay}. Tap the + button to add one.
       </Text>
     </View>
@@ -676,40 +678,46 @@ const ProgramScheduleScreen = () => {
   // Render loading indicator
   const renderLoadingIndicator = () => (
     <View style={styles.loadingOverlay}>
-      <ActivityIndicator size="large" color="#F9A826" />
-      <Text style={[styles.loadingText, { color: '#fff' }]}>Loading...</Text>
+      <ActivityIndicator size="large" color={theme.colors.primary} />
+      <Text style={[styles.loadingText, { color: theme.colors.text.primary }]}>Loading...</Text>
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>Program Schedule</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      <View style={[styles.headerContainer, { 
+        backgroundColor: theme.colors.background.secondary,
+        borderBottomColor: theme.colors.border
+      }]}>
+        <Text style={[styles.headerTitle, { color: theme.colors.text.primary }]}>Program Schedule</Text>
         <View style={styles.headerButtonsContainer}>
-          <TouchableOpacity style={styles.addButton} onPress={handleAddItem}>
-            <Ionicons name="add" size={20} color="#FFF" />
-            <Text style={styles.addButtonText}>Add Item</Text>
+          <TouchableOpacity style={[styles.addButton, { backgroundColor: theme.colors.primary }]} onPress={handleAddItem}>
+            <Ionicons name="add" size={20} color={theme.colors.surface} />
+            <Text style={[styles.addButtonText, { color: theme.colors.surface }]}>Add Item</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.refreshButton} onPress={fetchScheduleItems}>
-            <Ionicons name="refresh" size={20} color="#FFF" />
+          <TouchableOpacity style={[styles.refreshButton, { backgroundColor: theme.colors.primary }]} onPress={fetchScheduleItems}>
+            <Ionicons name="refresh" size={20} color={theme.colors.surface} />
           </TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.tabsContainer}>
+      <View style={[styles.tabsContainer, { 
+        backgroundColor: theme.colors.background.secondary,
+        borderBottomColor: theme.colors.border
+      }]}>
         <TouchableOpacity 
-          style={[styles.tab, currentDay === 1 && styles.activeTab]}
+          style={[styles.tab, currentDay === 1 && [styles.activeTab, { borderBottomColor: theme.colors.primary }]]}
           onPress={() => setCurrentDay(1)}
         >
-          <Text style={[styles.tabText, currentDay === 1 && styles.activeTabText]}>
+          <Text style={[styles.tabText, { color: theme.colors.text.secondary }, currentDay === 1 && [styles.activeTabText, { color: theme.colors.primary }]]}>
             Day 1
           </Text>
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.tab, currentDay === 2 && styles.activeTab]}
+          style={[styles.tab, currentDay === 2 && [styles.activeTab, { borderBottomColor: theme.colors.primary }]]}
           onPress={() => setCurrentDay(2)}
         >
-          <Text style={[styles.tabText, currentDay === 2 && styles.activeTabText]}>
+          <Text style={[styles.tabText, { color: theme.colors.text.secondary }, currentDay === 2 && [styles.activeTabText, { color: theme.colors.primary }]]}>
             Day 2
           </Text>
         </TouchableOpacity>
@@ -746,19 +754,16 @@ const ProgramScheduleScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#222',
   },
   headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#1A1A1A',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: 'white',
   },
   headerButtonsContainer: {
     flexDirection: 'row',
@@ -766,7 +771,6 @@ const styles = StyleSheet.create({
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9A826',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
@@ -775,22 +779,18 @@ const styles = StyleSheet.create({
   refreshButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#4a6ea9',
     padding: 6,
     borderRadius: 16,
     width: 32,
     height: 32,
   },
   addButtonText: {
-    color: 'white',
     fontWeight: 'bold',
     marginLeft: 4,
   },
   tabsContainer: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
-    backgroundColor: '#2A2A2A',
   },
   tab: {
     flex: 1,
@@ -799,15 +799,12 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     borderBottomWidth: 3,
-    borderBottomColor: '#F9A826',
   },
   tabText: {
-    color: '#999',
     fontSize: 16,
     fontWeight: '600',
   },
   activeTabText: {
-    color: '#F9A826',
   },
   listContent: {
     paddingHorizontal: 16,
@@ -880,35 +877,32 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   loadingText: {
+    marginTop: 10,
     fontSize: 16,
-    fontWeight: '500',
-    marginTop: 12,
   },
   emptyStateContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-    marginTop: 50,
+    paddingVertical: 80,
   },
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
     marginTop: 16,
+    marginBottom: 8,
   },
   emptyStateDescription: {
     fontSize: 14,
-    color: '#aaa',
     textAlign: 'center',
-    marginTop: 8,
-    maxWidth: '80%',
+    paddingHorizontal: 40,
+    lineHeight: 20,
   },
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
     width: '90%',
@@ -928,25 +922,26 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
   },
   detailSection: {
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   detailItem: {
     fontSize: 16,
-    marginBottom: 4,
+    lineHeight: 24,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginTop: 20,
+    gap: 10,
   },
   actionButton: {
     flexDirection: 'row',
@@ -963,7 +958,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#e74c3c',
   },
   buttonText: {
-    color: 'white',
     fontWeight: 'bold',
     marginLeft: 6,
   },
@@ -1017,7 +1011,6 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   submitButtonText: {
-    color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },

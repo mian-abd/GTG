@@ -10,12 +10,14 @@ import * as MediaLibrary from 'expo-media-library';
 import Papa from 'papaparse';
 import XLSX from 'xlsx';
 import { generateUniqueToken } from '../../utils/tokenService';
+import { useTheme } from '../../context/ThemeContext';
 
 // Import demo data
 import { MENTORS } from '../../utils/demoData';
 
 // Create a separate component for the Add Mentor Form to isolate state management
 const AddMentorForm = ({ visible, onClose, onSubmit, isLoading }) => {
+  const { theme } = useTheme();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -62,14 +64,14 @@ const AddMentorForm = ({ visible, onClose, onSubmit, isLoading }) => {
           keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
           enabled={Platform.OS === 'ios'}
         >
-          <View style={styles.editModalContainer}>
-            <View style={styles.editModalHeader}>
-              <Text style={styles.editModalTitle}>Add New Mentor</Text>
+          <View style={[styles.editModalContainer, { backgroundColor: theme.colors.card }]}>
+            <View style={[styles.editModalHeader, { borderBottomColor: theme.colors.border }]}>
+              <Text style={[styles.editModalTitle, { color: theme.colors.text.primary }]}>Add New Mentor</Text>
               <TouchableOpacity 
                 onPress={handleClose}
                 hitSlop={{top: 20, right: 20, bottom: 20, left: 20}}
               >
-                <Ionicons name="close" size={24} color="#666" />
+                <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
               </TouchableOpacity>
             </View>
             
@@ -78,44 +80,64 @@ const AddMentorForm = ({ visible, onClose, onSubmit, isLoading }) => {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              <Text style={styles.inputLabel}>Name *</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Name *</Text>
               <TextInput
-                style={styles.editInput}
+                style={[styles.editInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.name}
                 onChangeText={(text) => handleInputChange('name', text)}
                 placeholder="Enter name"
+                placeholderTextColor={theme.colors.text.tertiary}
                 returnKeyType="next"
                 blurOnSubmit={false}
               />
               
-              <Text style={styles.inputLabel}>Email *</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Email *</Text>
               <TextInput
-                style={styles.editInput}
+                style={[styles.editInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.email}
                 onChangeText={(text) => handleInputChange('email', text)}
                 placeholder="Enter email"
+                placeholderTextColor={theme.colors.text.tertiary}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 returnKeyType="next"
                 blurOnSubmit={false}
               />
               
-              <Text style={styles.inputLabel}>Department *</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Department *</Text>
               <TextInput
-                style={styles.editInput}
+                style={[styles.editInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.department}
                 onChangeText={(text) => handleInputChange('department', text)}
                 placeholder="Enter department"
+                placeholderTextColor={theme.colors.text.tertiary}
                 returnKeyType="next"
                 blurOnSubmit={false}
               />
               
-              <Text style={styles.inputLabel}>Biography</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Biography</Text>
               <TextInput
-                style={[styles.editInput, styles.notesInput]}
+                style={[styles.editInput, styles.notesInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.biography}
                 onChangeText={(text) => handleInputChange('biography', text)}
                 placeholder="Enter biography"
+                placeholderTextColor={theme.colors.text.tertiary}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
@@ -123,7 +145,7 @@ const AddMentorForm = ({ visible, onClose, onSubmit, isLoading }) => {
               />
               
               <TouchableOpacity 
-                style={styles.saveButton}
+                style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}
                 onPress={handleSubmit}
                 disabled={isLoading}
                 activeOpacity={0.7}
@@ -144,6 +166,7 @@ const AddMentorForm = ({ visible, onClose, onSubmit, isLoading }) => {
 
 // Create a separate component for the Edit Mentor Form to isolate state management
 const EditMentorForm = ({ visible, mentor, onClose, onSave, isLoading }) => {
+  const { theme } = useTheme();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -198,14 +221,14 @@ const EditMentorForm = ({ visible, mentor, onClose, onSave, isLoading }) => {
           keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
           enabled={Platform.OS === 'ios'}
         >
-          <View style={styles.editModalContainer}>
-            <View style={styles.editModalHeader}>
-              <Text style={styles.editModalTitle}>Edit Mentor</Text>
+          <View style={[styles.editModalContainer, { backgroundColor: theme.colors.card }]}>
+            <View style={[styles.editModalHeader, { borderBottomColor: theme.colors.border }]}>
+              <Text style={[styles.editModalTitle, { color: theme.colors.text.primary }]}>Edit Mentor</Text>
               <TouchableOpacity 
                 onPress={onClose}
                 hitSlop={{top: 20, right: 20, bottom: 20, left: 20}}
               >
-                <Ionicons name="close" size={24} color="#666" />
+                <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
               </TouchableOpacity>
             </View>
             
@@ -214,52 +237,72 @@ const EditMentorForm = ({ visible, mentor, onClose, onSave, isLoading }) => {
               keyboardShouldPersistTaps="always"
               showsVerticalScrollIndicator={false}
             >
-              <Text style={styles.inputLabel}>Name</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Name</Text>
               <TextInput
-                style={styles.editInput}
+                style={[styles.editInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.name}
                 onChangeText={(text) => handleInputChange('name', text)}
                 placeholder="Full Name"
+                placeholderTextColor={theme.colors.text.tertiary}
                 returnKeyType="next"
                 blurOnSubmit={false}
               />
               
-              <Text style={styles.inputLabel}>Email</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Email</Text>
               <TextInput
-                style={styles.editInput}
+                style={[styles.editInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.email}
                 onChangeText={(text) => handleInputChange('email', text)}
                 placeholder="Email Address"
+                placeholderTextColor={theme.colors.text.tertiary}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 returnKeyType="next"
                 blurOnSubmit={false}
               />
               
-              <Text style={styles.inputLabel}>Department</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Department</Text>
               <TextInput
-                style={styles.editInput}
+                style={[styles.editInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.department}
                 onChangeText={(text) => handleInputChange('department', text)}
                 placeholder="Department"
+                placeholderTextColor={theme.colors.text.tertiary}
                 returnKeyType="next"
                 blurOnSubmit={false}
               />
               
-              <Text style={styles.inputLabel}>Biography</Text>
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Biography</Text>
               <TextInput
-                style={[styles.editInput, styles.notesInput]}
+                style={[styles.editInput, styles.notesInput, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
                 value={formData.biography}
                 onChangeText={(text) => handleInputChange('biography', text)}
                 placeholder="Biography"
+                placeholderTextColor={theme.colors.text.tertiary}
                 multiline
-                numberOfLines={3}
+                numberOfLines={4}
                 textAlignVertical="top"
                 blurOnSubmit={true}
               />
               
               <TouchableOpacity 
-                style={styles.saveButton}
+                style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}
                 onPress={handleSubmit}
                 disabled={isLoading}
                 activeOpacity={0.7}
@@ -279,6 +322,7 @@ const EditMentorForm = ({ visible, mentor, onClose, onSave, isLoading }) => {
 };
 
 const ManageMentorsScreen = () => {
+  const { theme } = useTheme();
   const [mentors, setMentors] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMentor, setSelectedMentor] = useState(null);
@@ -981,18 +1025,18 @@ const ManageMentorsScreen = () => {
         activeOpacity={1}
         onPress={() => setAddModalVisible(false)}
       >
-        <View style={styles.addModalContainer}>
+        <View style={[styles.addModalContainer, { backgroundColor: theme.colors.card }]}>
           <View style={styles.addModalContent}>
             <TouchableOpacity 
-              style={styles.addModalOption}
+              style={[styles.addModalOption, { borderBottomColor: theme.colors.border }]}
               onPress={openAddMentorForm}
             >
-              <Ionicons name="person-add-outline" size={22} color="#333" />
-              <Text style={styles.addModalOptionText}>Add Mentor Manually</Text>
+              <Ionicons name="person-add-outline" size={22} color={theme.colors.text.primary} />
+              <Text style={[styles.addModalOptionText, { color: theme.colors.text.primary }]}>Add Mentor Manually</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.addModalOption}
+              style={[styles.addModalOption, { borderBottomColor: theme.colors.border }]}
               onPress={() => {
                 setAddModalVisible(false);
                 // Add a longer delay before opening the picker to ensure the modal is completely closed
@@ -1004,8 +1048,8 @@ const ManageMentorsScreen = () => {
                 }, 500);
               }}
             >
-              <Ionicons name="document-outline" size={22} color="#333" />
-              <Text style={styles.addModalOptionText}>Import from Excel</Text>
+              <Ionicons name="document-outline" size={22} color={theme.colors.text.primary} />
+              <Text style={[styles.addModalOptionText, { color: theme.colors.text.primary }]}>Import from Excel</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -1015,8 +1059,8 @@ const ManageMentorsScreen = () => {
                 handleImportSampleData();
               }}
             >
-              <Ionicons name="people-outline" size={22} color="#333" />
-              <Text style={styles.addModalOptionText}>Import Sample Data</Text>
+              <Ionicons name="people-outline" size={22} color={theme.colors.text.primary} />
+              <Text style={[styles.addModalOptionText, { color: theme.colors.text.primary }]}>Import Sample Data</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1035,9 +1079,9 @@ const ManageMentorsScreen = () => {
       }}
     >
       <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{selectedMentor?.name || ''}</Text>
+        <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text.primary }]}>{selectedMentor?.name || ''}</Text>
             <TouchableOpacity 
               onPress={() => {
                 setModalVisible(false);
@@ -1045,7 +1089,7 @@ const ManageMentorsScreen = () => {
               }}
               hitSlop={{top: 20, right: 20, bottom: 20, left: 20}}
             >
-              <Ionicons name="close" size={24} color="black" />
+              <Ionicons name="close" size={24} color={theme.colors.text.primary} />
             </TouchableOpacity>
           </View>
           
@@ -1053,48 +1097,48 @@ const ManageMentorsScreen = () => {
             {selectedMentor && (
               <>
                 <View style={styles.detailSection}>
-                  <Text style={styles.sectionTitle}>Mentor ID</Text>
-                  <Text style={styles.detailItem}>{selectedMentor.id}</Text>
+                  <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Mentor ID</Text>
+                  <Text style={[styles.detailItem, { color: theme.colors.text.secondary }]}>{selectedMentor.id}</Text>
                 </View>
                 
                 <View style={styles.detailSection}>
-                  <Text style={styles.sectionTitle}>Contact Information</Text>
-                  <Text style={styles.detailItem}>Email: {selectedMentor.email}</Text>
-                  <Text style={styles.detailItem}>Department: {selectedMentor.department}</Text>
+                  <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Contact Information</Text>
+                  <Text style={[styles.detailItem, { color: theme.colors.text.secondary }]}>Email: {selectedMentor.email}</Text>
+                  <Text style={[styles.detailItem, { color: theme.colors.text.secondary }]}>Department: {selectedMentor.department}</Text>
                 </View>
 
                 <View style={styles.detailSection}>
-                  <Text style={styles.sectionTitle}>Biography</Text>
-                  <Text style={styles.detailItem}>{selectedMentor.biography || 'No biography provided'}</Text>
+                  <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Biography</Text>
+                  <Text style={[styles.detailItem, { color: theme.colors.text.secondary }]}>{selectedMentor.biography || 'No biography provided'}</Text>
                 </View>
 
                 <View style={styles.detailSection}>
-                  <Text style={styles.sectionTitle}>Students</Text>
+                  <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Students</Text>
                   {selectedMentor.students && selectedMentor.students.length > 0 ? (
                     selectedMentor.students.map((studentId, index) => (
-                      <Text key={index} style={styles.detailItem}>• Student ID: {studentId}</Text>
+                      <Text key={index} style={[styles.detailItem, { color: theme.colors.text.secondary }]}>• Student ID: {studentId}</Text>
                     ))
                   ) : (
-                    <Text style={styles.detailItem}>No students assigned</Text>
+                    <Text style={[styles.detailItem, { color: theme.colors.text.secondary }]}>No students assigned</Text>
                   )}
                 </View>
 
                 <View style={styles.detailSection}>
-                  <Text style={styles.sectionTitle}>Account Information</Text>
-                  <Text style={styles.detailItem}>Role: {selectedMentor.role || 'mentor'}</Text>
-                  <Text style={styles.detailItem}>Status: {selectedMentor.status || 'active'}</Text>
+                  <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Account Information</Text>
+                  <Text style={[styles.detailItem, { color: theme.colors.text.secondary }]}>Role: {selectedMentor.role || 'mentor'}</Text>
+                  <Text style={[styles.detailItem, { color: theme.colors.text.secondary }]}>Status: {selectedMentor.status || 'active'}</Text>
                   {selectedMentor.createdAt && (
-                    <Text style={styles.detailItem}>
+                    <Text style={[styles.detailItem, { color: theme.colors.text.secondary }]}>
                       Created: {new Date(selectedMentor.createdAt).toLocaleDateString()}
                     </Text>
                   )}
                   {selectedMentor.updatedAt && (
-                    <Text style={styles.detailItem}>
+                    <Text style={[styles.detailItem, { color: theme.colors.text.secondary }]}>
                       Last Updated: {new Date(selectedMentor.updatedAt).toLocaleDateString()}
                     </Text>
                   )}
                   {selectedMentor.verificationToken && (
-                    <Text style={styles.detailItem}>
+                    <Text style={[styles.detailItem, { color: theme.colors.text.secondary }]}>
                       Has Login Token: Yes
                     </Text>
                   )}
@@ -1136,16 +1180,16 @@ const ManageMentorsScreen = () => {
 
   const renderMentorItem = ({ item }) => (
     <TouchableOpacity 
-      style={styles.mentorCard}
+      style={[styles.mentorCard, { backgroundColor: theme.colors.card }]}
       onPress={() => handleSelectMentor(item)}
     >
       <View style={styles.mentorInfo}>
-        <Text style={styles.mentorName}>{item.name}</Text>
+        <Text style={[styles.mentorName, { color: theme.colors.text.primary }]}>{item.name}</Text>
         <View style={styles.mentorDetails}>
-        <Text style={styles.mentorEmail}>{item.email}</Text>
-        <Text style={styles.mentorDepartment}>{item.department}</Text>
-          <Text style={styles.mentorId}>ID: {item.id}</Text>
-        <Text style={styles.studentCount}>
+        <Text style={[styles.mentorEmail, { color: theme.colors.text.secondary }]}>{item.email}</Text>
+        <Text style={[styles.mentorDepartment, { color: theme.colors.text.tertiary }]}>{item.department}</Text>
+          <Text style={[styles.mentorId, { color: theme.colors.text.tertiary }]}>ID: {item.id}</Text>
+        <Text style={[styles.studentCount, { color: theme.colors.primary }]}>
             Students: {item.students ? item.students.length : 0}
           </Text>
         </View>
@@ -1154,22 +1198,33 @@ const ManageMentorsScreen = () => {
         <Text style={[styles.statusBadge, item.status === 'active' ? styles.activeBadge : styles.inactiveBadge]}>
           {item.status || 'active'}
         </Text>
-        <Ionicons name="chevron-forward" size={24} color="gray" style={styles.chevron} />
+        <Ionicons name="chevron-forward" size={24} color={theme.colors.text.tertiary} style={styles.chevron} />
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.screenTitle}>Manage Mentors</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      <StatusBar barStyle={theme.colors.statusBar} backgroundColor={theme.colors.background.primary} />
+      <View style={[styles.header, { 
+        backgroundColor: theme.colors.background.secondary,
+        borderBottomColor: theme.colors.border
+      }]}>
+        <Text style={[styles.screenTitle, { color: theme.colors.text.primary }]}>Manage Mentors</Text>
       </View>
 
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="gray" style={styles.searchIcon} />
+      <View style={[styles.searchContainer, { 
+        backgroundColor: theme.colors.card,
+        borderColor: theme.colors.border
+      }]}>
+        <Ionicons name="search" size={20} color={theme.colors.text.tertiary} style={styles.searchIcon} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { 
+            color: theme.colors.text.primary,
+            placeholderTextColor: theme.colors.text.tertiary
+          }]}
           placeholder="Search mentors..."
+          placeholderTextColor={theme.colors.text.tertiary}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -1177,8 +1232,8 @@ const ManageMentorsScreen = () => {
 
       {isLoading && !mentors.length ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#F9A826" />
-          <Text style={styles.loadingText}>Loading...</Text>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={[styles.loadingText, { color: theme.colors.text.primary }]}>Loading...</Text>
         </View>
       ) : (
       <FlatList
@@ -1188,9 +1243,9 @@ const ManageMentorsScreen = () => {
         contentContainerStyle={styles.listContainer}
           ListEmptyComponent={() => (
             <View style={styles.emptyContainer}>
-              <Ionicons name="people-outline" size={64} color="#ccc" />
-              <Text style={styles.emptyTitle}>No mentors found</Text>
-              <Text style={styles.emptyText}>
+              <Ionicons name="people-outline" size={64} color={theme.colors.text.tertiary} />
+              <Text style={[styles.emptyTitle, { color: theme.colors.text.primary }]}>No mentors found</Text>
+              <Text style={[styles.emptyText, { color: theme.colors.text.secondary }]}>
                 Mentors you add or import will appear here.
               </Text>
             </View>
@@ -1199,7 +1254,7 @@ const ManageMentorsScreen = () => {
       )}
 
       <TouchableOpacity 
-        style={styles.addButton}
+        style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
         onPress={handleAddMentor}
         disabled={isLoading}
       >

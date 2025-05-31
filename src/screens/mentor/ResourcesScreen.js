@@ -7,105 +7,120 @@ import {
   TouchableOpacity, 
   TextInput,
   FlatList,
-  SafeAreaView, 
-  Image 
+  SafeAreaView,
+  Linking,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../context/ThemeContext';
 
 const ResourcesScreen = ({ navigation }) => {
+  const { theme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
 
-  // Mock resource data - this would typically come from an API or Firebase
+  // Real mentor resources - PDFs, Excel sheets, and docs
   const resources = [
     {
-      id: 'res1',
-      title: 'Mentor Handbook 2023',
-      description: 'Comprehensive guide for mentors, including policies and best practices.',
-      category: 'guides',
+      id: 'handbook',
+      title: 'DePauw Pre-College Mentor Handbook',
+      description: 'Complete guide for mentors including expectations, policies, and best practices for supporting pre-college students.',
+      category: 'handbook',
       type: 'pdf',
-      url: 'https://example.com/mentorhandbook.pdf',
-      dateAdded: '2023-05-15',
-      size: '2.4 MB',
-      thumbnail: null
+      size: '2.3 MB',
+      pages: 42,
+      lastModified: '2024-06-15'
     },
     {
-      id: 'res2',
-      title: 'Student Support Training Materials',
-      description: 'Training materials to help mentors provide better support to students.',
-      category: 'training',
-      type: 'pptx',
-      url: 'https://example.com/training.pptx',
-      dateAdded: '2023-05-10',
-      size: '5.7 MB',
-      thumbnail: null
-    },
-    {
-      id: 'res3',
-      title: 'Crisis Intervention Protocol',
-      description: 'Guidelines for handling student crises and emergencies.',
-      category: 'guides',
+      id: 'emergency',
+      title: 'Emergency Contact Procedures',
+      description: 'Step-by-step procedures for handling emergencies and crisis situations with students.',
+      category: 'safety',
       type: 'pdf',
-      url: 'https://example.com/crisis.pdf',
-      dateAdded: '2023-04-22',
-      size: '1.2 MB',
-      thumbnail: null
+      size: '1.1 MB',
+      pages: 8,
+      lastModified: '2024-06-10'
     },
     {
-      id: 'res4',
-      title: 'Effective Communication with Students',
-      description: 'Video workshop on improving communication with students.',
-      category: 'training',
-      type: 'video',
-      url: 'https://example.com/communication.mp4',
-      dateAdded: '2023-04-18',
-      size: '125 MB',
-      thumbnail: null
-    },
-    {
-      id: 'res5',
-      title: 'Academic Year Calendar',
-      description: 'Important dates for the academic year, including holidays and exam periods.',
-      category: 'admin',
-      type: 'pdf',
-      url: 'https://example.com/calendar.pdf',
-      dateAdded: '2023-03-30',
+      id: 'activities',
+      title: 'Program Activities Schedule',
+      description: 'Complete schedule of all program activities, class times, and special events.',
+      category: 'schedule',
+      type: 'excel',
       size: '0.8 MB',
-      thumbnail: null
+      sheets: 5,
+      lastModified: '2024-06-20'
     },
     {
-      id: 'res6',
-      title: 'Campus Resources Guide',
-      description: 'Directory of campus resources to help direct students to appropriate services.',
-      category: 'guides',
+      id: 'student-roster',
+      title: 'Student Roster & Contact Information',
+      description: 'List of all program participants with emergency contacts and important notes.',
+      category: 'roster',
+      type: 'excel',
+      size: '0.6 MB',
+      sheets: 3,
+      lastModified: '2024-06-18'
+    },
+    {
+      id: 'communication',
+      title: 'Communication Guidelines',
+      description: 'Best practices for communicating with students, parents, and program staff.',
+      category: 'guidelines',
+      type: 'doc',
+      size: '0.4 MB',
+      pages: 12,
+      lastModified: '2024-06-08'
+    },
+    {
+      id: 'incident-report',
+      title: 'Incident Report Form',
+      description: 'Form template for documenting any incidents or concerns that arise during the program.',
+      category: 'forms',
+      type: 'doc',
+      size: '0.2 MB',
+      pages: 3,
+      lastModified: '2024-06-05'
+    },
+    {
+      id: 'room-assignments',
+      title: 'Room Assignments & Floor Plans',
+      description: 'Student room assignments and residence hall floor plans for mentors.',
+      category: 'housing',
       type: 'pdf',
-      url: 'https://example.com/resources.pdf',
-      dateAdded: '2023-03-15',
-      size: '3.2 MB',
-      thumbnail: null
+      size: '1.7 MB',
+      pages: 15,
+      lastModified: '2024-06-12'
     },
     {
-      id: 'res7',
-      title: 'Mentoring Best Practices',
-      description: 'Research-based approaches to effective mentoring.',
-      category: 'training',
-      type: 'video',
-      url: 'https://example.com/bestpractices.mp4',
-      dateAdded: '2023-02-28',
-      size: '98 MB',
-      thumbnail: null
+      id: 'mentor-schedule',
+      title: 'Mentor Duty Schedule',
+      description: 'Weekly schedule of mentor duties, coverage areas, and shift assignments.',
+      category: 'schedule',
+      type: 'excel',
+      size: '0.5 MB',
+      sheets: 2,
+      lastModified: '2024-06-16'
     },
     {
-      id: 'res8',
-      title: 'Forms and Templates',
-      description: 'Collection of forms and templates for mentor-student interactions.',
-      category: 'admin',
-      type: 'zip',
-      url: 'https://example.com/forms.zip',
-      dateAdded: '2023-02-10',
-      size: '4.5 MB',
-      thumbnail: null
+      id: 'campus-map',
+      title: 'Campus Map & Key Locations',
+      description: 'Detailed campus map highlighting important locations for the pre-college program.',
+      category: 'reference',
+      type: 'pdf',
+      size: '2.9 MB',
+      pages: 4,
+      lastModified: '2024-06-01'
     },
+    {
+      id: 'program-policies',
+      title: 'Program Policies & Procedures',
+      description: 'Official policies covering conduct, disciplinary procedures, and program expectations.',
+      category: 'handbook',
+      type: 'doc',
+      size: '0.9 MB',
+      pages: 18,
+      lastModified: '2024-06-14'
+    }
   ];
 
   // Filter resources based on search query and active category
@@ -119,62 +134,104 @@ const ResourcesScreen = ({ navigation }) => {
     return matchesSearch && matchesCategory;
   });
 
-  // Get icon based on resource type
+  // Get icon and color based on resource type
   const getResourceIcon = (type) => {
     switch (type) {
       case 'pdf':
         return { name: 'document-text', color: '#e74c3c' };
-      case 'video':
-        return { name: 'videocam', color: '#3498db' };
-      case 'pptx':
-        return { name: 'stats-chart', color: '#e67e22' };
-      case 'zip':
-        return { name: 'folder', color: '#9b59b6' };
+      case 'excel':
+        return { name: 'grid', color: '#27ae60' };
+      case 'doc':
+        return { name: 'document', color: '#3498db' };
       default:
-        return { name: 'document', color: '#7f8c8d' };
+        return { name: 'document-outline', color: '#7f8c8d' };
     }
   };
 
   // Categories for filter tabs
   const categories = [
-    { id: 'all', name: 'All Resources' },
-    { id: 'guides', name: 'Guides' },
-    { id: 'training', name: 'Training' },
-    { id: 'admin', name: 'Administrative' },
+    { id: 'all', name: 'All Files' },
+    { id: 'handbook', name: 'Handbook' },
+    { id: 'schedule', name: 'Schedules' },
+    { id: 'safety', name: 'Safety' },
+    { id: 'forms', name: 'Forms' },
+    { id: 'reference', name: 'Reference' }
   ];
+
+  // Handle file opening - simulate viewing the file
+  const handleOpenFile = (resource) => {
+    Alert.alert(
+      `Open ${resource.title}`,
+      `This would open the ${resource.type.toUpperCase()} file for viewing.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Open', 
+          onPress: () => {
+            // In a real app, this would open a PDF viewer, Excel viewer, or Doc viewer
+            console.log(`Opening ${resource.title}`);
+          }
+        }
+      ]
+    );
+  };
 
   const renderResourceItem = ({ item }) => {
     const icon = getResourceIcon(item.type);
     
     return (
       <TouchableOpacity 
-        style={styles.resourceItem}
-        onPress={() => {
-          // Handle opening the resource - would typically open a PDF viewer or video player
-          console.log(`Opening resource: ${item.title}`);
-        }}
+        style={[styles.resourceItem, { backgroundColor: theme.colors.background.secondary }]}
+        onPress={() => handleOpenFile(item)}
       >
         <View style={styles.resourceContent}>
-          <View style={[styles.resourceIconContainer, { backgroundColor: `${icon.color}20` }]}>
-            <Ionicons name={icon.name} size={24} color={icon.color} />
+          <View style={[styles.resourceIconContainer, { backgroundColor: `${icon.color}15` }]}>
+            <Ionicons name={icon.name} size={28} color={icon.color} />
           </View>
           
           <View style={styles.resourceInfo}>
-            <Text style={styles.resourceTitle}>{item.title}</Text>
-            <Text style={styles.resourceDescription} numberOfLines={2}>{item.description}</Text>
+            <Text style={[styles.resourceTitle, { color: theme.colors.text.primary }]}>{item.title}</Text>
+            <Text style={[styles.resourceDescription, { color: theme.colors.text.secondary }]} numberOfLines={2}>
+              {item.description}
+            </Text>
             
             <View style={styles.resourceMeta}>
-              <Text style={styles.resourceType}>
-                {item.type.toUpperCase()} • {item.size}
-              </Text>
-              <Text style={styles.resourceDate}>
-                Added: {new Date(item.dateAdded).toLocaleDateString()}
+              <View style={styles.fileInfo}>
+                <Text style={[styles.resourceType, { color: theme.colors.text.tertiary }]}>
+                  {item.type.toUpperCase()}
+                </Text>
+                <Text style={[styles.separator, { color: theme.colors.text.tertiary }]}>•</Text>
+                <Text style={[styles.resourceSize, { color: theme.colors.text.tertiary }]}>
+                  {item.size}
+                </Text>
+                {item.pages && (
+                  <>
+                    <Text style={[styles.separator, { color: theme.colors.text.tertiary }]}>•</Text>
+                    <Text style={[styles.resourcePages, { color: theme.colors.text.tertiary }]}>
+                      {item.pages} pages
+                    </Text>
+                  </>
+                )}
+                {item.sheets && (
+                  <>
+                    <Text style={[styles.separator, { color: theme.colors.text.tertiary }]}>•</Text>
+                    <Text style={[styles.resourcePages, { color: theme.colors.text.tertiary }]}>
+                      {item.sheets} sheets
+                    </Text>
+                  </>
+                )}
+              </View>
+              <Text style={[styles.resourceDate, { color: theme.colors.text.tertiary }]}>
+                {new Date(item.lastModified).toLocaleDateString()}
               </Text>
             </View>
           </View>
           
-          <TouchableOpacity style={styles.downloadButton}>
-            <Ionicons name="cloud-download-outline" size={22} color="#4e73df" />
+          <TouchableOpacity 
+            style={styles.viewButton}
+            onPress={() => handleOpenFile(item)}
+          >
+            <Ionicons name="eye-outline" size={22} color={theme.colors.primary} />
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -182,23 +239,33 @@ const ResourcesScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.screenTitle}>Resources</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+      <View style={[styles.header, { 
+        backgroundColor: theme.colors.background.secondary,
+        borderBottomColor: theme.colors.border
+      }]}>
+        <Text style={[styles.screenTitle, { color: theme.colors.text.primary }]}>Mentor Resources</Text>
+        <Text style={[styles.fileCount, { color: theme.colors.text.secondary }]}>
+          {filteredResources.length} files
+        </Text>
       </View>
       
       {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={20} color="#999" style={styles.searchIcon} />
+      <View style={[styles.searchContainer, { 
+        backgroundColor: theme.colors.background.secondary,
+        borderColor: theme.colors.border
+      }]}>
+        <Ionicons name="search-outline" size={20} color={theme.colors.text.tertiary} style={styles.searchIcon} />
         <TextInput
-          style={styles.searchInput}
-          placeholder="Search resources..."
+          style={[styles.searchInput, { color: theme.colors.text.primary }]}
+          placeholder="Search files..."
+          placeholderTextColor={theme.colors.text.tertiary}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery !== '' && (
           <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
-            <Ionicons name="close-circle" size={20} color="#999" />
+            <Ionicons name="close-circle" size={20} color={theme.colors.text.tertiary} />
           </TouchableOpacity>
         )}
       </View>
@@ -215,14 +282,16 @@ const ResourcesScreen = ({ navigation }) => {
             key={category.id}
             style={[
               styles.categoryButton,
-              activeCategory === category.id && styles.activeCategoryButton
+              { backgroundColor: theme.colors.background.tertiary },
+              activeCategory === category.id && { backgroundColor: theme.colors.primary }
             ]}
             onPress={() => setActiveCategory(category.id)}
           >
             <Text 
               style={[
                 styles.categoryText,
-                activeCategory === category.id && styles.activeCategoryText
+                { color: theme.colors.text.secondary },
+                activeCategory === category.id && { color: theme.colors.surface }
               ]}
             >
               {category.name}
@@ -240,22 +309,14 @@ const ResourcesScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyStateContainer}>
-            <Ionicons name="document-outline" size={64} color="#ccc" />
-            <Text style={styles.emptyStateTitle}>No resources found</Text>
-            <Text style={styles.emptyStateText}>
+            <Ionicons name="folder-open-outline" size={64} color={theme.colors.text.tertiary} />
+            <Text style={[styles.emptyStateTitle, { color: theme.colors.text.primary }]}>No files found</Text>
+            <Text style={[styles.emptyStateText, { color: theme.colors.text.secondary }]}>
               Try adjusting your search or category filters
             </Text>
           </View>
         }
       />
-      
-      {/* Upload FAB */}
-      <TouchableOpacity 
-        style={styles.fab}
-        onPress={() => console.log('Upload new resource')}
-      >
-        <Ionicons name="add" size={24} color="#fff" />
-      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -263,32 +324,29 @@ const ResourcesScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e1e1',
   },
   screenTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+  },
+  fileCount: {
+    fontSize: 14,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
     marginHorizontal: 16,
     marginVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e1e1e1',
   },
   searchIcon: {
     marginRight: 8,
@@ -297,7 +355,6 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 40,
     fontSize: 16,
-    color: '#333',
   },
   clearButton: {
     padding: 4,
@@ -306,48 +363,41 @@ const styles = StyleSheet.create({
     maxHeight: 50,
   },
   categoriesContainer: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
   },
   categoryButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    marginHorizontal: 4,
+    marginRight: 8,
     borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-  },
-  activeCategoryButton: {
-    backgroundColor: '#4e73df',
   },
   categoryText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#666',
-  },
-  activeCategoryText: {
-    color: '#fff',
   },
   resourcesList: {
     padding: 16,
+    paddingBottom: 32,
   },
   resourceItem: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-    overflow: 'hidden',
+    shadowRadius: 4,
+    elevation: 3,
   },
   resourceContent: {
     flexDirection: 'row',
     padding: 16,
+    alignItems: 'flex-start',
   },
   resourceIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
+    width: 52,
+    height: 52,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -358,65 +408,62 @@ const styles = StyleSheet.create({
   resourceTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
+    marginBottom: 6,
+    lineHeight: 22,
   },
   resourceDescription: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
+    marginBottom: 12,
+    lineHeight: 20,
   },
   resourceMeta: {
+    flexDirection: 'column',
+    gap: 4,
+  },
+  fileInfo: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   resourceType: {
     fontSize: 12,
-    color: '#888',
-    fontWeight: '500',
+    fontWeight: '600',
+  },
+  separator: {
+    fontSize: 12,
+    marginHorizontal: 6,
+  },
+  resourceSize: {
+    fontSize: 12,
+  },
+  resourcePages: {
+    fontSize: 12,
   },
   resourceDate: {
     fontSize: 12,
-    color: '#888',
   },
-  downloadButton: {
-    width: 40,
-    height: 40,
+  viewButton: {
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#4e73df',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    borderRadius: 22,
   },
   emptyStateContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 40,
+    marginTop: 60,
   },
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
     marginTop: 16,
     marginBottom: 8,
   },
   emptyStateText: {
     fontSize: 14,
-    color: '#888',
     textAlign: 'center',
+    lineHeight: 20,
   },
 });
 

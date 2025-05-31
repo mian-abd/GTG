@@ -13,6 +13,7 @@ import {
   SafeAreaView 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../context/ThemeContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 
@@ -25,6 +26,7 @@ import {
 } from '../../utils/firebaseConfig';
 
 const MentorScheduleScreen = () => {
+  const { theme } = useTheme();
   const [mentors, setMentors] = useState([]);
   const [filteredMentors, setFilteredMentors] = useState([]);
   const [shifts, setShifts] = useState([]);
