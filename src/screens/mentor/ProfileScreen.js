@@ -8,11 +8,17 @@ import {
   Image,
   SafeAreaView,
   Switch,
-  Alert
+  Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { updateDocument } from '../../utils/firebaseConfig';
 
 // Import helpers
 import { getInitials } from '../../utils/helpers';
@@ -20,11 +26,114 @@ import { getInitials } from '../../utils/helpers';
 const ProfileScreen = ({ onLogout, navigation }) => {
   // Get theme context
   const { theme, isDarkMode, toggleTheme } = useTheme();
-  const { user, handleLogout } = useAuth();
+  const { user, handleLogout, handleLogin } = useAuth();
   
   // State for settings
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [emailAlertsEnabled, setEmailAlertsEnabled] = useState(true);
+  
+  // State for profile editing
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    department: user?.department || '',
+    biography: user?.biography || '',
+    yearsExperience: user?.yearsExperience || '',
+    phone: user?.phone || '',
+  });
+
+  const handleInputChange = (field, value) => {
+    setFormData({
+      ...formData,
+      [field]: value
+    });
+  };
+
+  const validateForm = () => {
+    // Email validation regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    if (!formData.name.trim()) {
+      Alert.alert('Error', 'Please enter your name');
+      return false;
+    }
+    
+    if (!formData.email.trim() || !emailRegex.test(formData.email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return false;
+    }
+
+    if (!formData.department.trim()) {
+      Alert.alert('Error', 'Please enter your department');
+      return false;
+    }
+    
+    return true;
+  };
+
+  const handleEditProfile = () => {
+    // Reset form data to current user data
+    setFormData({
+      name: user?.name || '',
+      email: user?.email || '',
+      department: user?.department || '',
+      biography: user?.biography || '',
+      yearsExperience: user?.yearsExperience || '',
+      phone: user?.phone || '',
+    });
+    setEditModalVisible(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!validateForm()) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Only include fields that have been changed
+      const changedData = {};
+      Object.keys(formData).forEach(key => {
+        if (formData[key] !== user?.[key]) {
+          changedData[key] = formData[key];
+        }
+      });
+      
+      // If no changes, just close modal
+      if (Object.keys(changedData).length === 0) {
+        setEditModalVisible(false);
+        return;
+      }
+
+      // Add updated timestamp
+      changedData.updatedAt = new Date().toISOString();
+      
+      // Update in Firebase (assuming mentors collection)
+      const success = await updateDocument('mentors', user.id, changedData);
+      
+      if (success) {
+        // Update local auth context with updated data
+        const updatedUser = {
+          ...user,
+          ...changedData
+        };
+        
+        // Update auth context
+        handleLogin(user.role, updatedUser);
+        
+        Alert.alert('Success', 'Profile updated successfully');
+        setEditModalVisible(false);
+      } else {
+        Alert.alert('Error', 'Failed to update profile. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   const handleLogoutPress = () => {
     Alert.alert(
@@ -55,6 +164,145 @@ const ProfileScreen = ({ onLogout, navigation }) => {
     toggleTheme(value);
   };
 
+  // Edit Profile Modal Component
+  const EditProfileModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={editModalVisible}
+      onRequestClose={() => setEditModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardAvoidingContainer}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+        >
+          <View style={[styles.modalContainer, { backgroundColor: theme.colors.card }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.colors.text.primary }]}>Edit Profile</Text>
+              <TouchableOpacity 
+                onPress={() => setEditModalVisible(false)}
+                hitSlop={{top: 20, right: 20, bottom: 20, left: 20}}
+              >
+                <Ionicons name="close" size={24} color={theme.colors.text.secondary} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView 
+              contentContainerStyle={styles.modalContent}
+              keyboardShouldPersistTaps="always"
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Full Name</Text>
+              <TextInput
+                style={[styles.input, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
+                value={formData.name}
+                onChangeText={(text) => handleInputChange('name', text)}
+                placeholder="Enter your full name"
+                placeholderTextColor={theme.colors.text.tertiary}
+                returnKeyType="next"
+              />
+              
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Email</Text>
+              <TextInput
+                style={[styles.input, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
+                value={formData.email}
+                onChangeText={(text) => handleInputChange('email', text)}
+                placeholder="Enter your email address"
+                placeholderTextColor={theme.colors.text.tertiary}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                returnKeyType="next"
+              />
+              
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Department</Text>
+              <TextInput
+                style={[styles.input, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
+                value={formData.department}
+                onChangeText={(text) => handleInputChange('department', text)}
+                placeholder="Enter your department"
+                placeholderTextColor={theme.colors.text.tertiary}
+                returnKeyType="next"
+              />
+
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Phone Number</Text>
+              <TextInput
+                style={[styles.input, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
+                value={formData.phone}
+                onChangeText={(text) => handleInputChange('phone', text)}
+                placeholder="Enter your phone number"
+                placeholderTextColor={theme.colors.text.tertiary}
+                keyboardType="phone-pad"
+                returnKeyType="next"
+              />
+
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Years of Experience</Text>
+              <TextInput
+                style={[styles.input, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
+                value={formData.yearsExperience.toString()}
+                onChangeText={(text) => handleInputChange('yearsExperience', text)}
+                placeholder="Enter years of experience"
+                placeholderTextColor={theme.colors.text.tertiary}
+                keyboardType="numeric"
+                returnKeyType="next"
+              />
+              
+              <Text style={[styles.inputLabel, { color: theme.colors.text.primary }]}>Biography</Text>
+              <TextInput
+                style={[styles.input, styles.textArea, { 
+                  color: theme.colors.text.primary,
+                  backgroundColor: theme.colors.background.tertiary,
+                  borderColor: theme.colors.border
+                }]}
+                value={formData.biography}
+                onChangeText={(text) => handleInputChange('biography', text)}
+                placeholder="Tell us about yourself..."
+                placeholderTextColor={theme.colors.text.tertiary}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+              
+              <TouchableOpacity 
+                style={[styles.saveButton, { backgroundColor: theme.colors.primary }]}
+                onPress={handleSaveProfile}
+                disabled={isLoading}
+                activeOpacity={0.7}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Save Changes</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
+  );
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
       <View style={[styles.header, { 
@@ -62,7 +310,10 @@ const ProfileScreen = ({ onLogout, navigation }) => {
         borderBottomColor: theme.colors.border
       }]}>
         <Text style={[styles.screenTitle, { color: theme.colors.text.primary }]}>Profile</Text>
-        <TouchableOpacity style={[styles.editButton, { backgroundColor: theme.colors.background.tertiary }]}>
+        <TouchableOpacity 
+          style={[styles.editButton, { backgroundColor: theme.colors.background.tertiary }]}
+          onPress={handleEditProfile}
+        >
           <Ionicons name="create-outline" size={24} color={theme.colors.primary} />
         </TouchableOpacity>
       </View>
@@ -91,8 +342,19 @@ const ProfileScreen = ({ onLogout, navigation }) => {
               <Text style={[styles.profileName, { color: theme.colors.text.primary }]}>{user?.name || 'Mentor'}</Text>
               <Text style={[styles.profileRole, { color: theme.colors.text.secondary }]}>{user?.department || 'Department'}</Text>
               <Text style={[styles.profileEmail, { color: theme.colors.text.secondary }]}>{user?.email || ''}</Text>
+              {user?.phone && (
+                <Text style={[styles.profilePhone, { color: theme.colors.text.secondary }]}>{user.phone}</Text>
+              )}
             </View>
           </View>
+
+          {/* Biography Section */}
+          {user?.biography && (
+            <View style={styles.biographySection}>
+              <Text style={[styles.biographyTitle, { color: theme.colors.text.primary }]}>About</Text>
+              <Text style={[styles.biographyText, { color: theme.colors.text.secondary }]}>{user.biography}</Text>
+            </View>
+          )}
           
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
@@ -170,7 +432,10 @@ const ProfileScreen = ({ onLogout, navigation }) => {
         }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Account</Text>
           
-          <TouchableOpacity style={[styles.accountItem, { borderBottomColor: theme.colors.border }]}>
+          <TouchableOpacity 
+            style={[styles.accountItem, { borderBottomColor: theme.colors.border }]}
+            onPress={handleEditProfile}
+          >
             <View style={styles.accountItemLeft}>
               <Ionicons name="person-outline" size={24} color={theme.colors.text.secondary} style={styles.accountIcon} />
               <Text style={[styles.accountText, { color: theme.colors.text.primary }]}>Edit Profile</Text>
@@ -205,7 +470,7 @@ const ProfileScreen = ({ onLogout, navigation }) => {
           </TouchableOpacity>
         </View>
         
-        {/* My Students Section - Remove progress bars and message icons */}
+        {/* My Students Section */}
         <View style={[styles.studentsSection, { 
           backgroundColor: theme.colors.card,
           marginBottom: 20,
@@ -252,6 +517,9 @@ const ProfileScreen = ({ onLogout, navigation }) => {
           )}
         </View>
       </ScrollView>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal />
     </SafeAreaView>
   );
 };
@@ -259,27 +527,22 @@ const ProfileScreen = ({ onLogout, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e1e1',
   },
   screenTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
   },
   editButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f0f2ff',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -287,13 +550,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   profileSection: {
-    backgroundColor: '#fff',
     padding: 20,
     marginBottom: 16,
   },
   profileHeader: {
     flexDirection: 'row',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   profileImage: {
     width: 80,
@@ -305,7 +567,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#4e73df',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -322,17 +583,33 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 4,
   },
   profileRole: {
     fontSize: 16,
-    color: '#666',
     marginBottom: 4,
   },
   profileEmail: {
     fontSize: 14,
-    color: '#888',
+    marginBottom: 2,
+  },
+  profilePhone: {
+    fontSize: 14,
+  },
+  biographySection: {
+    marginBottom: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  biographyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  biographyText: {
+    fontSize: 14,
+    lineHeight: 20,
   },
   statsRow: {
     flexDirection: 'row',
@@ -347,32 +624,26 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
   },
   statLabel: {
     fontSize: 12,
-    color: '#888',
     marginTop: 4,
   },
   statDivider: {
     width: 1,
     height: '100%',
-    backgroundColor: '#f0f0f0',
   },
   settingsSection: {
-    backgroundColor: '#fff',
     padding: 20,
     marginBottom: 16,
   },
   accountSection: {
-    backgroundColor: '#fff',
     padding: 20,
     marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 16,
   },
   settingItem: {
@@ -381,7 +652,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
   },
   settingLeft: {
     flexDirection: 'row',
@@ -392,7 +662,6 @@ const styles = StyleSheet.create({
   },
   settingText: {
     fontSize: 16,
-    color: '#333',
   },
   accountItem: {
     flexDirection: 'row',
@@ -400,7 +669,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
   },
   accountItemLeft: {
     flexDirection: 'row',
@@ -411,25 +679,8 @@ const styles = StyleSheet.create({
   },
   accountText: {
     fontSize: 16,
-    color: '#333',
-  },
-  logoutItem: {
-    borderBottomWidth: 0,
-    marginTop: 8,
-  },
-  logoutText: {
-    color: '#ff3b30',
-  },
-  footer: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  versionText: {
-    color: '#888',
-    fontSize: 14,
   },
   studentsSection: {
-    backgroundColor: '#fff',
     padding: 20,
     marginBottom: 20,
   },
@@ -441,14 +692,12 @@ const styles = StyleSheet.create({
   },
   viewAllButton: {
     borderWidth: 1,
-    borderColor: '#e1e1e1',
     padding: 8,
     borderRadius: 4,
   },
   viewAllText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
   },
   studentItem: {
     flexDirection: 'row',
@@ -456,7 +705,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
   },
   studentInfo: {
     flexDirection: 'row',
@@ -472,29 +720,87 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#4e73df',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
   },
   studentImageText: {
     color: '#fff',
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   studentName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
   },
   studentDetail: {
     fontSize: 14,
-    color: '#666',
   },
   noStudentsText: {
     fontSize: 16,
-    color: '#888',
     textAlign: 'center',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  keyboardAvoidingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalContainer: {
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '90%',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  modalContent: {
+    padding: 16,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 8,
+    marginTop: 12,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  saveButton: {
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 
