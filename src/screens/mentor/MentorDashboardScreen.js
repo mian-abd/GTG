@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -7,15 +7,20 @@ import {
   ScrollView, 
   Image,
   SafeAreaView,
-  StatusBar
+  StatusBar,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { getInitials } from '../../utils/helpers';
+import { 
+  getScheduleByDay, 
+  formatScheduleTime 
+} from '../../utils/scheduleService';
 
-// Demo data
+// Demo student data (keep this for now)
 const STUDENT_DATA = [
   { 
     id: '1', 
@@ -46,44 +51,64 @@ const STUDENT_DATA = [
   },
 ];
 
-const SCHEDULE_TODAY = [
-  {
-    id: '1',
-    name: 'Meeting with John',
-    time: '2:00 PM - 3:00 PM',
-    location: 'Julian Science Center 159',
-    icon: 'person'
-  },
-  {
-    id: '2',
-    name: 'Group Workshop',
-    time: '4:00 PM - 5:00 PM',
-    location: 'Hoover Hall 112',
-    icon: 'people'
-  }
-];
-
-const SCHEDULE_TOMORROW = [
-  {
-    id: '1',
-    name: 'Faculty Planning',
-    time: '10:30 AM - 11:30 AM',
-    location: 'Administration Building',
-    icon: 'calendar'
-  },
-  {
-    id: '2',
-    name: 'Student Review: Jane',
-    time: '1:15 PM - 2:15 PM',
-    location: 'Julian Science Center 159',
-    icon: 'person'
-  }
-];
-
 const MentorDashboardScreen = () => {
   const navigation = useNavigation();
   const { user, handleLogout } = useAuth();
   const { theme } = useTheme();
+  
+  // State for schedule data
+  const [todaySchedule, setTodaySchedule] = useState([]);
+  const [tomorrowSchedule, setTomorrowSchedule] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch schedule data on component mount
+  useEffect(() => {
+    fetchScheduleData();
+  }, []);
+
+  const fetchScheduleData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch schedule for Day 1 (today) and Day 2 (tomorrow)
+      const [day1Schedule, day2Schedule] = await Promise.all([
+        getScheduleByDay(1),
+        getScheduleByDay(2)
+      ]);
+      
+      // Filter to show only relevant items for dashboard (limit to 3-4 items each)
+      const relevantToday = day1Schedule
+        .filter(item => item.type !== 'meal') // Skip meals for dashboard
+        .slice(0, 3); // Show first 3 non-meal items
+      
+      const relevantTomorrow = day2Schedule
+        .filter(item => item.type !== 'meal') // Skip meals for dashboard
+        .slice(0, 3); // Show first 3 non-meal items
+      
+      setTodaySchedule(relevantToday);
+      setTomorrowSchedule(relevantTomorrow);
+    } catch (error) {
+      console.error('Error fetching schedule data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Get appropriate icon for schedule item type
+  const getScheduleIcon = (type) => {
+    switch (type) {
+      case 'session':
+        return 'school';
+      case 'activity':
+        return 'people';
+      case 'free':
+        return 'time';
+      case 'meal':
+        return 'restaurant';
+      default:
+        return 'calendar';
+    }
+  };
   
   const handleMenuToggle = () => {
     // Toggle the sidebar menu
@@ -92,6 +117,14 @@ const MentorDashboardScreen = () => {
   const handleStudentDetails = (student) => {
     navigation.navigate('StudentDetail', { student });
   };
+
+  // Render loading state
+  const renderLoadingSchedule = () => (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="small" color={theme.colors.primary} />
+      <Text style={[styles.loadingText, { color: theme.colors.text.secondary }]}>Loading schedule...</Text>
+    </View>
+  );
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background.primary }]}>
@@ -114,7 +147,7 @@ const MentorDashboardScreen = () => {
         </View>
 
         <ScrollView style={styles.scrollView}>
-          <View style={styles.dashboardHeader}>
+          <View style={[styles.dashboardHeader, { backgroundColor: theme.colors.background.secondary }]}>
             <View style={styles.mentorProfileSection}>
               {user?.profileImageUrl ? (
                 <Image source={{ uri: user.profileImageUrl }} style={styles.profileImage} />
@@ -134,97 +167,75 @@ const MentorDashboardScreen = () => {
             </View>
           </View>
 
-          <View style={[styles.welcomeCard, { 
-            backgroundColor: theme.colors.card,
-            borderColor: theme.colors.border
-          }]}>
-            <Text style={[styles.welcomeText, { color: theme.colors.text.primary }]}>Welcome back, {user?.name?.split(' ')[0] || "Mentor"}!</Text>
-            <Text style={[styles.updateText, { color: theme.colors.text.secondary }]}>You have 3 student updates and 2 upcoming activities today</Text>
-            <TouchableOpacity 
-              style={[styles.viewScheduleButton, { backgroundColor: theme.colors.primary }]}
-              onPress={() => navigation.navigate('ScheduleTab')}
-            >
-              <Text style={styles.viewScheduleText}>View Schedule</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>My Students</Text>
-          </View>
-
-          <View style={styles.studentsContainer}>
-            {STUDENT_DATA.map((student) => (
-              <View key={student.id} style={[styles.studentCard, { 
-                backgroundColor: theme.colors.card,
-                borderColor: theme.colors.border
-              }]}>
-                <View style={styles.studentHeader}>
-                  <View style={[styles.initialsContainer, { backgroundColor: theme.colors.primary }]}>
-                    <Text style={styles.initials}>{student.initials}</Text>
-                  </View>
-                  <View style={styles.studentInfo}>
-                    <Text style={[styles.studentName, { color: theme.colors.text.primary }]}>{student.name}</Text>
-                    <Text style={[styles.studentDepartment, { color: theme.colors.text.secondary }]}>{student.department}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.meetingNotesContainer}>
-                  <Text style={[styles.lastMeetingLabel, { color: theme.colors.text.secondary }]}>Last meeting: {student.lastMeeting}</Text>
-                  <Text style={[styles.meetingNotes, { color: theme.colors.text.primary }]}>{student.meetingNotes}</Text>
-                </View>
-
-                <TouchableOpacity 
-                  style={[styles.viewDetailsButton, { backgroundColor: theme.colors.background.tertiary }]}
-                  onPress={() => handleStudentDetails(student)}
-                >
-                  <Text style={[styles.viewDetailsText, { color: theme.colors.text.primary }]}>View Details</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Today's Schedule</Text>
           </View>
 
-          <View style={styles.scheduleContainer}>
-            {SCHEDULE_TODAY.map((item) => (
-              <View key={item.id} style={[styles.scheduleItem, { 
-                backgroundColor: theme.colors.card,
-                borderColor: theme.colors.border
-              }]}>
-                <View style={styles.scheduleIconContainer}>
-                  <Ionicons name={item.icon} size={24} color={theme.colors.primary} />
+          {loading ? renderLoadingSchedule() : (
+            <View style={styles.scheduleContainer}>
+              {todaySchedule.length > 0 ? (
+                todaySchedule.map((item, index) => (
+                  <View key={item.id || index} style={[styles.scheduleItem, { 
+                    backgroundColor: theme.colors.card,
+                    borderColor: theme.colors.border
+                  }]}>
+                    <View style={styles.scheduleIconContainer}>
+                      <Ionicons name={getScheduleIcon(item.type)} size={24} color={theme.colors.primary} />
+                    </View>
+                    <View style={styles.scheduleContent}>
+                      <Text style={[styles.scheduleItemName, { color: theme.colors.text.primary }]}>{item.title}</Text>
+                      <Text style={[styles.scheduleItemTime, { color: theme.colors.text.secondary }]}>
+                        {formatScheduleTime(item.startTime)} - {formatScheduleTime(item.endTime)}
+                      </Text>
+                      {item.location && (
+                        <Text style={[styles.scheduleItemLocation, { color: theme.colors.text.tertiary }]}>{item.location}</Text>
+                      )}
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.emptySchedule}>
+                  <Text style={[styles.emptyScheduleText, { color: theme.colors.text.secondary }]}>
+                    No events scheduled for today
+                  </Text>
                 </View>
-                <View style={styles.scheduleContent}>
-                  <Text style={[styles.scheduleItemName, { color: theme.colors.text.primary }]}>{item.name}</Text>
-                  <Text style={[styles.scheduleItemTime, { color: theme.colors.text.secondary }]}>{item.time}</Text>
-                  <Text style={[styles.scheduleItemLocation, { color: theme.colors.text.tertiary }]}>{item.location}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
+              )}
+            </View>
+          )}
 
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Tomorrow</Text>
           </View>
 
-          <View style={styles.scheduleContainer}>
-            {SCHEDULE_TOMORROW.map((item) => (
-              <View key={item.id} style={[styles.scheduleItem, { 
-                backgroundColor: theme.colors.card,
-                borderColor: theme.colors.border
-              }]}>
-                <View style={styles.scheduleIconContainer}>
-                  <Ionicons name={item.icon} size={24} color={theme.colors.primary} />
+          {loading ? renderLoadingSchedule() : (
+            <View style={styles.scheduleContainer}>
+              {tomorrowSchedule.length > 0 ? (
+                tomorrowSchedule.map((item, index) => (
+                  <View key={item.id || index} style={[styles.scheduleItem, { 
+                    backgroundColor: theme.colors.card,
+                    borderColor: theme.colors.border
+                  }]}>
+                    <View style={styles.scheduleIconContainer}>
+                      <Ionicons name={getScheduleIcon(item.type)} size={24} color={theme.colors.primary} />
+                    </View>
+                    <View style={styles.scheduleInfo}>
+                      <Text style={[styles.scheduleTitle, { color: theme.colors.text.primary }]}>{item.title}</Text>
+                      <Text style={[styles.scheduleTime, { color: theme.colors.text.secondary }]}>
+                        {formatScheduleTime(item.startTime)} - {formatScheduleTime(item.endTime)}
+                        {item.location && ` • ${item.location}`}
+                      </Text>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.emptySchedule}>
+                  <Text style={[styles.emptyScheduleText, { color: theme.colors.text.secondary }]}>
+                    No events scheduled for tomorrow
+                  </Text>
                 </View>
-                <View style={styles.scheduleInfo}>
-                  <Text style={[styles.scheduleTitle, { color: theme.colors.text.primary }]}>{item.name}</Text>
-                  <Text style={[styles.scheduleTime, { color: theme.colors.text.secondary }]}>{item.time} • {item.location}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
+              )}
+            </View>
+          )}
 
           <View style={styles.footer}>
             <Text style={[styles.footerText, { color: theme.colors.text.tertiary }]}>DePauw University Pre-College Program</Text>
@@ -269,7 +280,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dashboardHeader: {
-    backgroundColor: '#2A2A2A',
     padding: 16,
   },
   mentorProfileSection: {
@@ -294,118 +304,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mentorName: {
-    color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },
   mentorDepartment: {
-    color: '#CCC',
     fontSize: 14,
   },
   dashboardTitleContainer: {
     marginTop: 16,
   },
   dashboardTitle: {
-    color: 'white',
     fontSize: 20,
     fontWeight: 'bold',
   },
   sessionInfo: {
-    color: '#CCC',
     fontSize: 14,
-  },
-  welcomeCard: {
-    backgroundColor: '#2A2A2A',
-    margin: 16,
-    padding: 16,
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#009688',
-  },
-  welcomeText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  updateText: {
-    color: '#CCC',
-    fontSize: 14,
-    marginBottom: 16,
-  },
-  viewScheduleButton: {
-    alignSelf: 'flex-end',
-  },
-  viewScheduleText: {
-    color: '#009688',
-    fontWeight: 'bold',
   },
   sectionHeader: {
     padding: 16,
     paddingBottom: 8,
   },
   sectionTitle: {
-    color: 'white',
     fontSize: 18,
-    fontWeight: 'bold',
-  },
-  studentsContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  studentCard: {
-    backgroundColor: '#333',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-  },
-  studentHeader: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  initialsContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#3498db',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  initials: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  studentInfo: {
-    justifyContent: 'center',
-  },
-  studentName: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  studentDepartment: {
-    color: '#CCC',
-    fontSize: 14,
-  },
-  meetingNotesContainer: {
-    marginBottom: 16,
-  },
-  lastMeetingLabel: {
-    color: '#CCC',
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  meetingNotes: {
-    color: 'white',
-    fontSize: 14,
-  },
-  viewDetailsButton: {
-    alignSelf: 'flex-end',
-  },
-  viewDetailsText: {
-    color: '#009688',
     fontWeight: 'bold',
   },
   scheduleContainer: {
@@ -413,12 +333,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   scheduleItem: {
-    backgroundColor: '#333',
     borderRadius: 8,
     padding: 16,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    borderWidth: 1,
   },
   scheduleIconContainer: {
     width: 40,
@@ -429,25 +349,54 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 16,
   },
+  scheduleContent: {
+    flex: 1,
+  },
+  scheduleItemName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  scheduleItemTime: {
+    fontSize: 14,
+  },
+  scheduleItemLocation: {
+    fontSize: 12,
+  },
   scheduleInfo: {
     flex: 1,
   },
   scheduleTitle: {
-    color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   scheduleTime: {
-    color: '#CCC',
     fontSize: 14,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginLeft: 8,
+    fontSize: 14,
+  },
+  emptySchedule: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyScheduleText: {
+    fontSize: 14,
+    fontStyle: 'italic',
   },
   footer: {
     padding: 16,
     alignItems: 'center',
   },
   footerText: {
-    color: '#888',
     fontSize: 12,
   },
   profileImage: {
@@ -455,23 +404,6 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     marginRight: 16,
-  },
-  scheduleContent: {
-    flex: 1,
-  },
-  scheduleItemName: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  scheduleItemTime: {
-    color: '#CCC',
-    fontSize: 14,
-  },
-  scheduleItemLocation: {
-    color: '#888',
-    fontSize: 12,
   },
 });
 
