@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { getDocuments } from '../../utils/firebaseConfig';
 
 // Demo data
@@ -24,6 +25,7 @@ const ACTIVITIES = [
 ];
 
 const DashboardScreen = () => {
+  const { theme } = useTheme();
   const navigation = useNavigation();
   const { handleLogout } = useAuth();
   const [activeVisitorsCount, setActiveVisitorsCount] = useState('...');
@@ -70,22 +72,22 @@ const DashboardScreen = () => {
   };
 
   const renderActivity = ({ item }) => (
-    <View style={styles.activityRow}>
+    <View style={[styles.activityRow, { borderBottomColor: theme.colors.border }]}>
       <View style={styles.activityCol}>
-        <Text style={styles.activityText}>{item.name}</Text>
+        <Text style={[styles.activityText, { color: theme.colors.text.primary }]}>{item.name}</Text>
       </View>
       <View style={styles.activityCol}>
-        <Text style={styles.activityText}>{item.date}</Text>
+        <Text style={[styles.activityText, { color: theme.colors.text.primary }]}>{item.date}</Text>
       </View>
       <View style={styles.activityCol}>
-        <Text style={styles.activityText}>{item.location}</Text>
+        <Text style={[styles.activityText, { color: theme.colors.text.primary }]}>{item.location}</Text>
       </View>
       <View style={styles.activityCol}>
-        <Text style={styles.activityText}>{item.participants}</Text>
+        <Text style={[styles.activityText, { color: theme.colors.text.primary }]}>{item.participants}</Text>
       </View>
       <View style={styles.activityCol}>
         <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="create-outline" size={20} color="#666" />
+          <Ionicons name="create-outline" size={20} color={theme.colors.text.secondary} />
         </TouchableOpacity>
       </View>
     </View>
@@ -93,27 +95,27 @@ const DashboardScreen = () => {
 
   const renderStudent = ({ item }) => (
     <TouchableOpacity 
-      style={styles.studentCard}
+      style={[styles.studentCard, { borderBottomColor: theme.colors.border }]}
       onPress={() => {
         // Navigate to student details or some action
         navigation.navigate('UsersTab');
       }}
     >
       <View style={styles.studentAvatarContainer}>
-        <View style={styles.studentAvatar}>
-          <Text style={styles.studentInitials}>
+        <View style={[styles.studentAvatar, { backgroundColor: theme.colors.primary }]}>
+          <Text style={[styles.studentInitials, { color: theme.colors.surface }]}>
             {item.name ? item.name.charAt(0).toUpperCase() : '?'}
           </Text>
         </View>
       </View>
       <View style={styles.studentInfo}>
-        <Text style={styles.studentName}>{item.name || 'Unknown'}</Text>
-        <Text style={styles.studentEmail}>{item.email || 'No email'}</Text>
-        {item.roomNumber && <Text style={styles.studentEmail}>Room: {item.roomNumber}</Text>}
+        <Text style={[styles.studentName, { color: theme.colors.text.primary }]}>{item.name || 'Unknown'}</Text>
+        <Text style={[styles.studentEmail, { color: theme.colors.text.secondary }]}>{item.email || 'No email'}</Text>
+        {item.roomNumber && <Text style={[styles.studentEmail, { color: theme.colors.text.secondary }]}>Room: {item.roomNumber}</Text>}
       </View>
       <View style={styles.studentStatus}>
         <View style={[styles.statusIndicator, { backgroundColor: '#4CAF50' }]} />
-        <Text style={styles.statusText}>Active</Text>
+        <Text style={[styles.statusText, { color: theme.colors.text.secondary }]}>Active</Text>
       </View>
     </TouchableOpacity>
   );
@@ -147,160 +149,124 @@ const DashboardScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1A1A1A" />
-      <View style={styles.container}>
-        <View style={styles.header}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background.primary }]}>
+      <StatusBar barStyle={theme.colors.statusBar} backgroundColor={theme.colors.background.primary} />
+      <View style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+        <View style={[styles.header, { 
+          backgroundColor: theme.colors.background.secondary,
+          borderBottomColor: theme.colors.border
+        }]}>
           <TouchableOpacity onPress={handleMenuToggle} style={styles.menuButton}>
-            <Ionicons name="menu" size={24} color="#FFF" />
+            <Ionicons name="menu" size={24} color={theme.colors.text.primary} />
           </TouchableOpacity>
           <View style={styles.logoContainer}>
-            <Ionicons name="school" size={24} color="#F9A826" />
-            <Text style={styles.headerTitle}>Admin Dashboard</Text>
+            <Ionicons name="school" size={24} color={theme.colors.primary} />
+            <Text style={[styles.headerTitle, { color: theme.colors.text.primary }]}>Admin Dashboard</Text>
           </View>
         </View>
 
-        <View style={styles.programOverview}>
+        <View style={[styles.programOverview, { backgroundColor: theme.colors.background.secondary }]}>
           <View>
-            <Text style={styles.sectionTitle}>Program Overview</Text>
-            <Text style={styles.sectionSubtitle}>Summer 2025</Text>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Program Overview</Text>
+            <Text style={[styles.sectionSubtitle, { color: theme.colors.text.secondary }]}>Summer 2025</Text>
           </View>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false}>
-          <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
-              <Text style={styles.statTitle}>Active Visitors</Text>
+          <View style={[styles.statsContainer, { backgroundColor: theme.colors.background.secondary }]}>
+            <View style={[styles.statCard, { backgroundColor: theme.colors.card }]}>
+              <Text style={[styles.statTitle, { color: theme.colors.text.primary }]}>Active Visitors</Text>
               <View style={styles.statIconContainer}>
-                <Ionicons name="people" size={24} color="#F9A826" />
+                <Ionicons name="people" size={24} color={theme.colors.primary} />
               </View>
-              <Text style={styles.statValue}>{activeVisitorsCount}</Text>
+              <Text style={[styles.statValue, { color: theme.colors.primary }]}>{activeVisitorsCount}</Text>
               <TouchableOpacity 
                 style={styles.viewAllButton}
                 onPress={handleViewAllUsers}
               >
-                <Text style={styles.viewAllText}>View All</Text>
+                <Text style={[styles.viewAllText, { color: theme.colors.text.tertiary }]}>View All</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.statCard}>
-              <Text style={styles.statTitle}>Mentors</Text>
+            <View style={[styles.statCard, { backgroundColor: theme.colors.card }]}>
+              <Text style={[styles.statTitle, { color: theme.colors.text.primary }]}>Mentors</Text>
               <View style={styles.statIconContainer}>
-                <Ionicons name="school" size={24} color="#F9A826" />
+                <Ionicons name="school" size={24} color={theme.colors.primary} />
               </View>
-              <Text style={styles.statValue}>{mentorsCount}</Text>
+              <Text style={[styles.statValue, { color: theme.colors.primary }]}>{mentorsCount}</Text>
               <TouchableOpacity 
                 style={styles.viewAllButton}
                 onPress={handleViewAllMentors}
               >
-                <Text style={styles.viewAllText}>View All</Text>
+                <Text style={[styles.viewAllText, { color: theme.colors.text.tertiary }]}>View All</Text>
               </TouchableOpacity>
             </View>
 
-            <View style={styles.statCard}>
-              <Text style={styles.statTitle}>Activities</Text>
+            <View style={[styles.statCard, { backgroundColor: theme.colors.card }]}>
+              <Text style={[styles.statTitle, { color: theme.colors.text.primary }]}>Activities</Text>
               <View style={styles.statIconContainer}>
-                <Ionicons name="calendar" size={24} color="#F9A826" />
+                <Ionicons name="calendar" size={24} color={theme.colors.primary} />
               </View>
-              <Text style={styles.statValue}>{activitiesCount}</Text>
+              <Text style={[styles.statValue, { color: theme.colors.primary }]}>{activitiesCount}</Text>
               <TouchableOpacity 
                 style={styles.viewAllButton}
                 onPress={handleViewAllActivities}
               >
-                <Text style={styles.viewAllText}>View All</Text>
+                <Text style={[styles.viewAllText, { color: theme.colors.text.tertiary }]}>View All</Text>
               </TouchableOpacity>
             </View>
           </View>
           
           {/* Quick Access Buttons */}
-          <View style={styles.section}>
+          <View style={[styles.section, { backgroundColor: theme.colors.background.secondary }]}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Quick Access</Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Quick Access</Text>
             </View>
             <View style={styles.quickAccessContainer}>
               <TouchableOpacity 
-                style={styles.quickAccessButton}
+                style={[styles.quickAccessButton, { backgroundColor: theme.colors.card }]}
                 onPress={handleRoomAssignments}
               >
-                <Ionicons name="bed" size={24} color="#F9A826" />
-                <Text style={styles.quickAccessText}>Room Assignments</Text>
+                <Ionicons name="bed" size={24} color={theme.colors.primary} />
+                <Text style={[styles.quickAccessText, { color: theme.colors.text.primary }]}>Room Assignments</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
-                style={styles.quickAccessButton}
+                style={[styles.quickAccessButton, { backgroundColor: theme.colors.card }]}
                 onPress={handleMentorSchedule}
               >
-                <Ionicons name="time" size={24} color="#F9A826" />
-                <Text style={styles.quickAccessText}>Mentor Schedules</Text>
+                <Ionicons name="time" size={24} color={theme.colors.primary} />
+                <Text style={[styles.quickAccessText, { color: theme.colors.text.primary }]}>Mentor Schedules</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
-                style={styles.quickAccessButton}
+                style={[styles.quickAccessButton, { backgroundColor: theme.colors.card }]}
                 onPress={handleStudentSchedule}
               >
-                <Ionicons name="book" size={24} color="#F9A826" />
-                <Text style={styles.quickAccessText}>Student Classes</Text>
+                <Ionicons name="book" size={24} color={theme.colors.primary} />
+                <Text style={[styles.quickAccessText, { color: theme.colors.text.primary }]}>Student Classes</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.section, { backgroundColor: theme.colors.background.secondary }]}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Upcoming Activities</Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Student Status</Text>
               <TouchableOpacity 
-                style={styles.viewButton}
-                onPress={handleViewAllActivities}
-              >
-                <Text style={styles.viewButtonText}>View All</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.activitiesContainer}>
-              <View style={styles.activitiesHeader}>
-                <View style={styles.activityCol}>
-                  <Text style={styles.columnTitle}>Activity</Text>
-                </View>
-                <View style={styles.activityCol}>
-                  <Text style={styles.columnTitle}>Date</Text>
-                </View>
-                <View style={styles.activityCol}>
-                  <Text style={styles.columnTitle}>Location</Text>
-                </View>
-                <View style={styles.activityCol}>
-                  <Text style={styles.columnTitle}>Participants</Text>
-                </View>
-                <View style={styles.activityCol}>
-                  <Text style={styles.columnTitle}>Actions</Text>
-                </View>
-              </View>
-              
-              <FlatList
-                data={ACTIVITIES}
-                renderItem={renderActivity}
-                keyExtractor={item => item.id}
-                scrollEnabled={false}
-              />
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Student Status</Text>
-              <TouchableOpacity 
-                style={styles.manageButton}
+                style={[styles.manageButton, { backgroundColor: theme.colors.primary }]}
                 onPress={handleManageVisitors}
               >
-                <Text style={styles.manageButtonText}>Manage Students</Text>
+                <Text style={[styles.manageButtonText, { color: theme.colors.surface }]}>Manage Students</Text>
               </TouchableOpacity>
             </View>
 
             {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#F9A826" />
-                <Text style={styles.loadingText}>Loading students...</Text>
+              <View style={[styles.loadingContainer, { backgroundColor: theme.colors.card }]}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text style={[styles.loadingText, { color: theme.colors.text.secondary }]}>Loading students...</Text>
               </View>
             ) : students.length > 0 ? (
-              <View style={styles.studentsContainer}>
+              <View style={[styles.studentsContainer, { backgroundColor: theme.colors.card }]}>
                 <FlatList
                   data={students.slice(0, 5)} // Only show first 5 students
                   renderItem={renderStudent}
@@ -308,10 +274,10 @@ const DashboardScreen = () => {
                   scrollEnabled={false}
                   ListFooterComponent={students.length > 5 && (
                     <TouchableOpacity 
-                      style={styles.viewMoreButton}
+                      style={[styles.viewMoreButton, { borderTopColor: theme.colors.border }]}
                       onPress={handleViewAllUsers}
                     >
-                      <Text style={styles.viewMoreText}>
+                      <Text style={[styles.viewMoreText, { color: theme.colors.primary }]}>
                         View {students.length - 5} more students
                       </Text>
                     </TouchableOpacity>
@@ -319,8 +285,8 @@ const DashboardScreen = () => {
                 />
               </View>
             ) : (
-              <View style={styles.noVisitorsContainer}>
-                <Text style={styles.noVisitorsText}>
+              <View style={[styles.noVisitorsContainer, { backgroundColor: theme.colors.card }]}>
+                <Text style={[styles.noVisitorsText, { color: theme.colors.text.secondary }]}>
                   No students found. Add students through the Manage Students page.
                 </Text>
               </View>
@@ -328,7 +294,7 @@ const DashboardScreen = () => {
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>
+            <Text style={[styles.footerText, { color: theme.colors.text.tertiary }]}>
               DePauw University Pre-College Program Dashboard
             </Text>
           </View>
@@ -341,19 +307,15 @@ const DashboardScreen = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
   },
   container: {
     flex: 1,
-    backgroundColor: '#222',
   },
   header: {
-    backgroundColor: '#1A1A1A',
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   menuButton: {
     marginRight: 16,
@@ -363,22 +325,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
     marginLeft: 8,
   },
   programOverview: {
-    backgroundColor: '#2A2A2A',
     padding: 16,
   },
   sectionTitle: {
-    color: 'white',
     fontSize: 20,
     fontWeight: 'bold',
   },
   sectionSubtitle: {
-    color: '#CCC',
     fontSize: 14,
   },
   statsContainer: {
@@ -386,10 +344,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     flexWrap: 'wrap',
     padding: 16,
-    backgroundColor: '#2A2A2A',
   },
   statCard: {
-    backgroundColor: '#333',
     borderRadius: 8,
     padding: 16,
     width: '30%',
@@ -397,7 +353,6 @@ const styles = StyleSheet.create({
     minWidth: 100,
   },
   statTitle: {
-    color: 'white',
     fontSize: 14,
     marginBottom: 8,
     textAlign: 'center',
@@ -406,7 +361,6 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   statValue: {
-    color: '#F9A826',
     fontSize: 24,
     fontWeight: 'bold',
     marginVertical: 8,
@@ -415,7 +369,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   viewAllText: {
-    color: '#AAA',
     fontSize: 12,
   },
   // Quick Access styles
@@ -427,20 +380,17 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   quickAccessButton: {
-    backgroundColor: '#333',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
     width: '30%',
   },
   quickAccessText: {
-    color: 'white',
     marginTop: 8,
     fontSize: 12,
     textAlign: 'center',
   },
   section: {
-    backgroundColor: '#2A2A2A',
     marginTop: 16,
     paddingVertical: 16,
   },
@@ -452,37 +402,31 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   viewButton: {
-    backgroundColor: '#F9A826',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
   },
   viewButtonText: {
-    color: 'black',
     fontWeight: 'bold',
     fontSize: 12,
   },
   activitiesContainer: {
     marginHorizontal: 16,
-    backgroundColor: '#333',
     borderRadius: 8,
   },
   activitiesHeader: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#444',
     paddingVertical: 12,
     paddingHorizontal: 8,
   },
   columnTitle: {
-    color: '#CCC',
     fontSize: 12,
     fontWeight: 'bold',
   },
   activityRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#444',
     paddingVertical: 16,
     paddingHorizontal: 8,
   },
@@ -491,7 +435,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   activityText: {
-    color: 'white',
     fontSize: 14,
   },
   actionButton: {
@@ -502,41 +445,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   manageButton: {
-    backgroundColor: '#F9A826',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
   },
   manageButtonText: {
-    color: 'black',
     fontWeight: 'bold',
     fontSize: 12,
   },
   noVisitorsContainer: {
-    backgroundColor: '#333',
     marginHorizontal: 16,
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
   },
   noVisitorsText: {
-    color: '#CCC',
     textAlign: 'center',
   },
   loadingContainer: {
-    backgroundColor: '#333',
     marginHorizontal: 16,
     padding: 24,
     borderRadius: 8,
     alignItems: 'center',
   },
   loadingText: {
-    color: '#CCC',
     marginTop: 8,
   },
   studentsContainer: {
     marginHorizontal: 16,
-    backgroundColor: '#333',
     borderRadius: 8,
     overflow: 'hidden',
   },
@@ -545,7 +481,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#444',
   },
   studentAvatarContainer: {
     marginRight: 12,
@@ -554,12 +489,10 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F9A826',
     justifyContent: 'center',
     alignItems: 'center',
   },
   studentInitials: {
-    color: '#333',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -567,12 +500,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   studentName: {
-    color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },
   studentEmail: {
-    color: '#CCC',
     fontSize: 12,
   },
   studentStatus: {
@@ -586,17 +517,14 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   statusText: {
-    color: '#CCC',
     fontSize: 12,
   },
   viewMoreButton: {
     alignItems: 'center',
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#444',
   },
   viewMoreText: {
-    color: '#F9A826',
     fontSize: 14,
   },
   footer: {
@@ -604,7 +532,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerText: {
-    color: '#666',
     fontSize: 12,
   },
 });

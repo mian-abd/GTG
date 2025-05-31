@@ -137,24 +137,10 @@ const SettingsScreen = () => {
               isDarkMode,
               handleThemeToggle
             )}
-
-            {renderSettingItem(
-              'language',
-              'Language',
-              'Change app language',
-              () => {}
-            )}
           </Card>
 
           <Card style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>Support</Text>
-
-            {renderSettingItem(
-              'help-circle',
-              'Help Center',
-              'Get help with using the app',
-              () => {}
-            )}
 
             {renderSettingItem(
               'bug',
