@@ -1,6 +1,20 @@
-# 🎓 DePauw Gatewway To Gold Pre-College Program Mobile App
+# 🎓 DePauw Gateway To Gold Pre-College Program Mobile App
 
 > A comprehensive mobile application for DePauw University's Pre-College Summer Program, built with React Native and Expo. This app serves administrators, mentors, and students with role-based access to manage and participate in the summer program.
+
+## 🎥 Live Demo
+
+<div align="center">
+
+[![YouTube Live Demo](https://img.shields.io/badge/📺_Watch_Live_Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtube.com/watch?v=YtdaRXXqtGo&feature=youtu.be)
+
+**🔴 [Click here to watch the complete app walkthrough and live demonstration!](https://youtube.com/watch?v=YtdaRXXqtGo&feature=youtu.be)**
+
+*See the app in action with real-time features, user interactions, and complete functionality showcase*
+
+</div>
+
+---
 
 <div align="center">
 
