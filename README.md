@@ -132,9 +132,9 @@ For testing purposes, use these credentials:
 
 | Role | Email | Password |
 |------|-------|----------|
-| **Admin** | `admin@depauw.edu` | `mortonspeople` |
-| **Mentor** | `mentor@depauw.edu` | `mortonspeople` |
-| **Student** | `visitor@depauw.edu` | `mortonspeople` |
+| **Admin** | `admin@depauw.edu` | `contact devlopers for password` |
+| **Mentor** | `mentor@depauw.edu` | `contact devlopers for password` |
+| **Student** | `visitor@depauw.edu` | `contact devlopers for password` |
 
 ## 🏗️ Project Structure
 
